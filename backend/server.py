@@ -1,4 +1,4 @@
-"""HTTP REST API and static frontend server for Pantau Beras Sulawesi."""
+"""HTTP REST API and static frontend server for berasak.ai."""
 
 from __future__ import annotations
 
@@ -791,7 +791,7 @@ def query_export(
 
 
 class AppHandler(BaseHTTPRequestHandler):
-    server_version = "PantauBerasHTTP/1.0"
+    server_version = "BerasakAIHTTP/1.0"
 
     def log_message(self, format: str, *args) -> None:
         if os.environ.get("PANTAU_BERAS_QUIET") == "1":
@@ -920,7 +920,7 @@ if __name__ == "__main__":
     host = os.environ.get("HOST", "127.0.0.1")
     srv = create_server(host=host)
     addr = srv.server_address
-    print(f"Pantau Beras Sulawesi server listening on http://{addr[0]}:{addr[1]}", flush=True)
+    print(f"berasak.ai server listening on http://{addr[0]}:{addr[1]}", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
