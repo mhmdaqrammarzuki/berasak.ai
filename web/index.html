@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pantau Beras Sulawesi | Indeks Harga Pangan</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%23E4F1EA' stroke='%2314533C' stroke-width='2'/%3E%3Cpath d='M7 15h3v-3h4v-3h3' stroke='%2314533C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <meta name="description" content="Pantauan harga beras harian antarprovinsi Sulawesi, margin rantai pasok, prakiraan 4-8 minggu, dan pemeriksaan kualitas data.">
+  <title>berasak.ai | Pantauan Harga Beras Sulawesi</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect x='2' y='2' width='20' height='20' rx='2' fill='%23FFFFFF' stroke='%230F5132' stroke-width='2'/%3E%3Cpath d='M6 16h3.5v-4H14V8h4' stroke='%230F5132' stroke-width='2.2' stroke-linecap='square' stroke-linejoin='miter'/%3E%3C/svg%3E">
+  <meta name="description" content="berasak.ai membantu masyarakat umum memantau harga beras harian di enam provinsi Sulawesi, membaca artikel edukasi, dan mengakses data resmi PIHPS Bank Indonesia.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/styles/layout.css">
   <link rel="stylesheet" href="/styles/components.css">
   <script defer src="/js/api.js"></script>
+  <script defer src="/js/articles.js"></script>
   <script defer src="/js/charts.js"></script>
   <script defer src="/js/sulawesi-map.js"></script>
   <script defer src="/js/app.js"></script>
@@ -20,34 +21,100 @@
 <body>
   <a class="skip-link" href="#main-content">Lompat ke konten utama</a>
 
-  <div class="app-shell" id="app-shell">
-    <aside class="sidebar" id="app-sidebar" aria-label="Navigasi utama">
-      <div class="sidebar-top">
-        <a class="brand-link" href="#beranda" aria-label="Pantau Beras Sulawesi Beranda">
+  <div class="site-shell" id="app-shell">
+    <header class="site-header" id="site-header">
+      <div class="site-header-inner">
+        <a class="brand-link" href="#beranda" aria-label="berasak.ai Beranda">
           <span class="brand-mark" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"></rect>
-              <path d="M7 15h3v-3h4v-3h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              <rect x="2.5" y="2.5" width="19" height="19" rx="2" stroke="currentColor" stroke-width="2"></rect>
+              <path d="M6.5 16H10v-4h4V8h3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"></path>
             </svg>
           </span>
           <span class="brand-text">
-            <span class="brand-name">Pantau Beras</span>
-            <span class="brand-sub">SULAWESI</span>
+            <span class="brand-name">berasak.ai</span>
+            <span class="brand-sub font-mono">SULAWESI</span>
           </span>
         </a>
-        <button
-          type="button"
-          class="btn btn-icon sidebar-collapse-btn"
-          id="sidebar-collapse-btn"
-          aria-expanded="true"
-          aria-controls="app-sidebar"
-          aria-label="Perkecil atau perluas bilah sisi"
-          title="Perkecil bilah sisi"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-          </svg>
-        </button>
+
+        <nav class="site-nav" aria-label="Navigasi utama">
+          <a class="top-nav-link" href="#beranda" data-route="beranda">Beranda</a>
+          <a class="top-nav-link" href="#tren" data-route="tren">Tren</a>
+          <a class="top-nav-link" href="#bandingkan" data-route="bandingkan">Wilayah</a>
+          <a class="top-nav-link" href="#prakiraan" data-route="prakiraan">Prediksi</a>
+
+          <div class="nav-dropdown" id="nav-data-dropdown">
+            <button
+              type="button"
+              class="top-nav-link nav-dropdown-trigger"
+              id="data-menu-btn"
+              aria-expanded="false"
+              aria-haspopup="true"
+              aria-controls="data-dropdown-menu"
+              data-route-group="kualitas,unduh"
+            >
+              <span>Data</span>
+              <svg class="dropdown-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter"></path>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu" id="data-dropdown-menu" hidden>
+              <a class="nav-dropdown-item" href="#kualitas" data-route="kualitas">Kualitas Data</a>
+              <a class="nav-dropdown-item" href="#unduh" data-route="unduh">Unduh Data CSV</a>
+            </div>
+          </div>
+
+          <a class="top-nav-link" href="#artikel" data-route="artikel">Artikel</a>
+          <a class="top-nav-link" href="#panduan" data-route="panduan">Panduan</a>
+          <a class="top-nav-link" href="#kontak" data-route="kontak">Kontak</a>
+        </nav>
+
+        <div class="header-actions">
+          <button
+            type="button"
+            class="btn btn-secondary theme-toggle-btn"
+            id="theme-toggle-btn"
+            aria-label="Ubah tema tampilan terang atau gelap"
+            aria-pressed="false"
+          >
+            <span class="theme-icon" id="theme-toggle-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+              </svg>
+            </span>
+            <span class="theme-label" id="theme-toggle-label">Mode Gelap</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary mobile-menu-btn"
+            id="mobile-menu-btn"
+            aria-expanded="false"
+            aria-controls="app-sidebar"
+            aria-label="Buka menu navigasi"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="square"></path>
+            </svg>
+            <span>Menu</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <aside class="nav-drawer" id="app-sidebar" aria-label="Menu navigasi seluler">
+      <div class="drawer-header">
+        <a class="brand-link" href="#beranda" aria-label="berasak.ai Beranda">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <rect x="2.5" y="2.5" width="19" height="19" rx="2" stroke="currentColor" stroke-width="2"></rect>
+              <path d="M6.5 16H10v-4h4V8h3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"></path>
+            </svg>
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">berasak.ai</span>
+            <span class="brand-sub font-mono">SULAWESI</span>
+          </span>
+        </a>
         <button
           type="button"
           class="btn btn-secondary drawer-close-btn"
@@ -58,9 +125,9 @@
         </button>
       </div>
 
-      <nav class="sidebar-nav" aria-label="Menu halaman">
+      <nav class="drawer-nav" aria-label="Daftar halaman">
         <div class="nav-group">
-          <div class="nav-group-label">Pemantauan</div>
+          <div class="nav-group-label">Pantauan Harga</div>
           <a class="nav-item" href="#beranda" data-route="beranda">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -80,19 +147,19 @@
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 6h10M4 12h16M4 18h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
             </svg>
-            <span class="nav-label">Bandingkan Wilayah</span>
+            <span class="nav-label">Peta &amp; Wilayah</span>
           </a>
-        </div>
-
-        <div class="nav-group">
-          <div class="nav-group-label">Analisis &amp; Arsip</div>
           <a class="nav-item" href="#prakiraan" data-route="prakiraan">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 16l5-5 4 3 3-3m2-2h3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Prakiraan Harga</span>
+            <span class="nav-label">Prediksi Harga</span>
           </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-label">Data Terbuka</div>
           <a class="nav-item" href="#kualitas" data-route="kualitas">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -105,7 +172,32 @@
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 4v11m0 0-4-4m4 4 4-4M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Unduh Data</span>
+            <span class="nav-label">Unduh Data CSV</span>
+          </a>
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-group-label">Edukasi &amp; Bantuan</div>
+          <a class="nav-item" href="#artikel" data-route="artikel">
+            <span class="nav-indicator" aria-hidden="true"></span>
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 4h11l3 3v13H5V4Zm3 5h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <span class="nav-label">Artikel &amp; Wawasan</span>
+          </a>
+          <a class="nav-item" href="#panduan" data-route="panduan">
+            <span class="nav-indicator" aria-hidden="true"></span>
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 17h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.3-1.7 2.7v.5M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <span class="nav-label">Panduan Pengguna</span>
+          </a>
+          <a class="nav-item" href="#kontak" data-route="kontak">
+            <span class="nav-indicator" aria-hidden="true"></span>
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <span class="nav-label">Kontak &amp; Layanan</span>
           </a>
         </div>
       </nav>
@@ -113,91 +205,113 @@
 
     <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
 
-    <div class="workspace">
-      <header class="mobile-header">
-        <a class="brand-link" href="#beranda">
-          <span class="brand-mark" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"></rect>
-              <path d="M7 15h3v-3h4v-3h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-          </span>
-          <span class="brand-name">Pantau Beras</span>
-        </a>
-        <div class="mobile-header-actions">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            id="theme-toggle-mobile"
-            aria-label="Ubah tema tampilan terang atau gelap"
-          >
-            Mode Gelap
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            id="mobile-menu-btn"
-            aria-expanded="false"
-            aria-controls="app-sidebar"
-          >
-            Menu
-          </button>
+    <main class="main-content" id="main-content" tabindex="-1">
+      <header class="page-header">
+        <div class="page-title-block">
+          <div class="masthead-eyebrow">
+            <span>berasak.ai</span>
+            <span aria-hidden="true">·</span>
+            <span>INDEKS HARGA BERAS SULAWESI</span>
+            <span aria-hidden="true">·</span>
+            <span class="font-mono" id="dataset-period-note">Data 12 Feb 2026</span>
+          </div>
+          <h1 class="page-title" id="page-title">Pantauan Harga Beras Sulawesi</h1>
+          <p class="page-subtitle" id="page-subtitle">Memuat ringkasan harga beras yang mudah dibaca untuk masyarakat Sulawesi.</p>
+        </div>
+
+        <div class="toolbar-row" id="segment-toolbar">
+          <div class="segment-group" role="group" aria-label="Pilih saluran pasar beras">
+            <button type="button" class="seg-btn is-active" aria-pressed="true" data-segment="modern">
+              <span class="seg-full">Pasar Modern</span>
+              <span class="seg-short" aria-hidden="true">Modern</span>
+            </button>
+            <button type="button" class="seg-btn" aria-pressed="false" data-segment="tradisional">
+              <span class="seg-full">Pasar Tradisional</span>
+              <span class="seg-short" aria-hidden="true">Tradisional</span>
+            </button>
+            <button type="button" class="seg-btn" aria-pressed="false" data-segment="produsen">
+              <span class="seg-full">Tingkat Produsen</span>
+              <span class="seg-short" aria-hidden="true">Produsen</span>
+            </button>
+          </div>
+          <div class="toolbar-meta" id="segment-channel-hint">
+            Pasar Modern: harga eceran supermarket &amp; minimarket · Rp/kg
+          </div>
         </div>
       </header>
 
-      <main class="main-content" id="main-content" tabindex="-1">
-        <header class="page-header">
-          <div class="page-title-row">
-            <div class="page-title-block">
-              <div class="masthead-eyebrow">
-                <span>BULETIN HARGA PANGAN</span>
-                <span aria-hidden="true">·</span>
-                <span class="font-mono" id="dataset-period-note">Data 12 Feb 2026</span>
-              </div>
-              <h1 class="page-title" id="page-title">Pemantauan Harga Beras Sulawesi</h1>
-              <p class="page-subtitle" id="page-subtitle">Memuat ringkasan pasar beras 6 provinsi Sulawesi.</p>
-            </div>
-            <div class="page-header-actions">
-              <button
-                type="button"
-                class="btn btn-secondary desktop-theme-btn"
-                id="theme-toggle-desktop"
-                aria-label="Ubah tema tampilan terang atau gelap"
-              >
-                Mode Gelap
-              </button>
-            </div>
+      <section id="view-root" aria-live="polite"></section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <a class="brand-link footer-brand" href="#beranda" aria-label="berasak.ai Beranda">
+              <span class="brand-mark" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="2" stroke="currentColor" stroke-width="2"></rect>
+                  <path d="M6.5 16H10v-4h4V8h3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter"></path>
+                </svg>
+              </span>
+              <span class="brand-text">
+                <span class="brand-name">berasak.ai</span>
+                <span class="brand-sub font-mono">SULAWESI</span>
+              </span>
+            </a>
+            <p class="footer-desc">
+              Layanan informasi publik untuk memantau harga beras harian, membandingkan wilayah Sulawesi, dan memahami tren pangan dengan bahasa sederhana.
+            </p>
+            <p class="footer-source font-mono">
+              Sumber: PIHPS Bank Indonesia (1 Jan 2022 s/d 12 Feb 2026) · 6 Provinsi Sulawesi.
+            </p>
           </div>
 
-          <div class="toolbar-row" id="segment-toolbar">
-            <div class="segment-group" role="group" aria-label="Pilih segmen pasar beras">
-              <button type="button" class="seg-btn is-active" aria-pressed="true" data-segment="modern">
-                <span class="seg-full">Pasar Modern</span>
-                <span class="seg-short" aria-hidden="true">Modern</span>
-              </button>
-              <button type="button" class="seg-btn" aria-pressed="false" data-segment="tradisional">
-                <span class="seg-full">Pasar Tradisional</span>
-                <span class="seg-short" aria-hidden="true">Tradisional</span>
-              </button>
-              <button type="button" class="seg-btn" aria-pressed="false" data-segment="produsen">
-                <span class="seg-full">Tingkat Produsen</span>
-                <span class="seg-short" aria-hidden="true">Produsen</span>
-              </button>
-            </div>
-            <div class="toolbar-meta font-mono" id="dataset-span-note">
-              6 Provinsi · Rp/kg
-            </div>
+          <div class="footer-col">
+            <h2 class="footer-heading">Pantauan &amp; Data</h2>
+            <ul class="footer-links">
+              <li><a href="#beranda">Beranda &amp; Cek Harga</a></li>
+              <li><a href="#tren">Grafik Tren Harga</a></li>
+              <li><a href="#bandingkan">Peta &amp; Margin Wilayah</a></li>
+              <li><a href="#prakiraan">Prediksi 4-8 Minggu</a></li>
+              <li><a href="#kualitas">Kualitas Data</a></li>
+              <li><a href="#unduh">Unduh Dataset CSV</a></li>
+            </ul>
           </div>
-        </header>
 
-        <section id="view-root" aria-live="polite"></section>
-      </main>
+          <div class="footer-col">
+            <h2 class="footer-heading">Artikel &amp; Panduan</h2>
+            <ul class="footer-links">
+              <li><a href="#artikel">Semua Artikel Edukasi</a></li>
+              <li><a href="#panduan">Panduan &amp; Kamus Istilah</a></li>
+              <li><a href="#artikel/memahami-beda-harga-produsen-tradisional-modern">Beda Harga Produsen &amp; Pasar</a></li>
+              <li><a href="#artikel/cara-membaca-prediksi-harga-beras-untuk-belanja-dan-usaha">Cara Baca Prediksi Harga</a></li>
+            </ul>
+          </div>
 
-      <footer class="app-footer">
-        <span>Pantau Beras Sulawesi</span>
-        <span>Sumber: PIHPS Bank Indonesia · Beras tingkat provinsi tanpa rincian jenis.</span>
-      </footer>
-    </div>
+          <div class="footer-col">
+            <h2 class="footer-heading">Kontak &amp; Layanan</h2>
+            <ul class="footer-contact-list">
+              <li>
+                <span class="footer-contact-label">Email Layanan</span>
+                <a class="footer-contact-link font-mono" href="mailto:customer.service@berasak.ai.com">customer.service@berasak.ai.com</a>
+              </li>
+              <li>
+                <span class="footer-contact-label">Telepon Bantuan</span>
+                <a class="footer-contact-link font-mono" href="tel:67676996697">(6767) 6996697</a>
+              </li>
+            </ul>
+            <a class="btn btn-secondary footer-contact-btn" href="#kontak">Hubungi Layanan Pengguna</a>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <span>&copy; 2026 berasak.ai · Informasi Harga Beras Sulawesi</span>
+          <span>Beras tingkat provinsi tanpa rincian varietas</span>
+          <button type="button" class="btn btn-ghost footer-top-btn" id="back-to-top-btn">Kembali ke atas</button>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <nav class="mobile-bottom-nav" aria-label="Navigasi cepat seluler">
@@ -217,13 +331,19 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4 6h10M4 12h16M4 18h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
       </svg>
-      <span>Banding</span>
+      <span>Wilayah</span>
     </a>
-    <a class="bottom-tab" href="#prakiraan" data-route="prakiraan">
+    <a class="bottom-tab" href="#artikel" data-route="artikel">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 16l5-5 4 3 3-3m2-2h3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M5 4h11l3 3v13H5V4Zm3 5h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
-      <span>Prakiraan</span>
+      <span>Artikel</span>
+    </a>
+    <a class="bottom-tab" href="#kontak" data-route="kontak">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span>Kontak</span>
     </a>
   </nav>
 </body>
