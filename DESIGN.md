@@ -57,3 +57,17 @@ Reading this as: **berasak.ai**, an open public Indonesian regional rice-price p
 | `--chart-sulut` | Sulawesi Utara | `#0A6578` | 6.68:1 | `#4ED3E6` | 10.11:1 |
 | `--chart-sulsel` | Sulawesi Selatan | `#0F5132` | 9.36:1 | `#3DD698` | 9.67:1 |
 | `--chart-sulbar` | Sulawesi Barat | `#6E3E85` | 7.80:1 | `#D2A0E8` | 8.52:1 |
+
+## Post-Audit UX & Interaction Enhancements
+- **Modular Client Architecture (`index.html`, `views-public.js`, `app.js`)**:
+  - `web/js/views-public.js` isolates CSV export (`#unduh`), article reader/filter (`#artikel`), guide/glossary/FAQ (`#panduan`), and official contact channels/form (`#kontak`) on `window.PBS.publicViews`, keeping `web/js/app.js` focused on routing, navigation state, and analytics views.
+- **Navigation & Accessibility (`index.html`, `layout.css`, `app.js`)**:
+  - Canonical navigation labels (`Beranda`, `Tren Harga`, `Wilayah`, `Prediksi`, `Kualitas Data`, `Unduh CSV`, `Artikel`, `Panduan`, `Kontak`) unified across desktop bar, `Data` dropdown, mobile drawer, and 4-column footer.
+  - Desktop nav activation threshold lowered from `1080px` to `920px` so tablet/small-laptop viewports use the compact inline top navigation without hamburger indirection.
+  - Separate `#route-announcer` live region replaces `aria-live` on `#view-root`; `#main-content` receives focus on route navigation without focus-ring flash on mouse clicks; `#page-breadcrumb` displays contextual hierarchy for article pages; mobile drawer traps `Tab`/`Shift+Tab` and marks background landmarks `inert` + `aria-hidden`; `Data` dropdown implements `role="menu"` / `role="menuitem"` arrow/Home/End/Escape/focusout keyboard control.
+- **Cognitive Load & Hierarchy (`components.css`, `app.js`)**:
+  - Unified `.overview-hero` on `#beranda` combines Cek Cepat + Estimasi Belanja alongside Selisih Antarprovinsi via a hairline `1px` split without stacked nested boxes; clicking any spectrum dot or province dropdown updates estimates, dot state, and active ledger row in place with persisted preferences (`localStorage`).
+  - Calm/unchanged provinces render quiet `Stabil` labels instead of competing badge chips; alert strings containing internal code `R5` are normalized to `>10%` in UI rendering; bottom `#beranda`/`#panduan` support strips removed to avoid duplicating the footer; glossary uses a 2-column semantic `<dl class="glossary-list">` and `#kontak` channels use hairline rows inside a single card.
+  - `#tren`, `#bandingkan`, `#prakiraan`, `#kualitas`, and `#unduh` keep filter forms/strips mounted across option changes (zero focus loss), add `.panel-loading` opacity feedback, cache client-side chart overlays (`MA 4W` & markers) on `#tren`, support clickable table rows on `#bandingkan` and `#prakiraan`, expose min/max spread across all 6 provinces on `#kualitas`, and align all table `th.num-head` headers with right-aligned `td.num-cell` values.
+- **Charts & Map (`charts.js`, `sulawesi-map.js`)**:
+  - SVG charts implement roving `tabindex` with `ArrowLeft`/`ArrowRight`/`Home`/`End`/`Escape` navigation and `12px` axis labels; `window.PBS.updateSulawesiMapSelection` updates map selection attributes in place without replacing SVG nodes.

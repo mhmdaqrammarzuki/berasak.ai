@@ -75,6 +75,14 @@ window.PBS = window.PBS || {};
     },
   ];
 
+  function formatMapCaption(byName, selectedProvince) {
+    const selectedRec = selectedProvince ? byName[selectedProvince] : null;
+    if (!selectedRec) {
+      return "Pilih provinsi pada peta atau tabel untuk melihat perbandingan.";
+    }
+    return `${selectedProvince}: ${formatRp(selectedRec.price_idr)} per kg (Peringkat ke-${selectedRec.rank} dari 6 provinsi)`;
+  }
+
   window.PBS.renderSulawesiMap = function renderSulawesiMap(container, rankings, selectedProvince, onSelect) {
     const byName = {};
     (rankings || []).forEach((r) => {
@@ -109,24 +117,21 @@ window.PBS = window.PBS || {};
           ${pathsMarkup}
           <line x1="${reg.cx}" y1="${reg.cy}" x2="${leaderEndX}" y2="${leaderEndY}" stroke="${isSel ? "var(--text-primary)" : "var(--border-strong)"}" stroke-width="${isSel ? "1.6" : "1"}" stroke-dasharray="${isSel ? "none" : "2 2"}"></line>
           <circle cx="${reg.cx}" cy="${reg.cy}" r="${isSel ? "3.5" : "2.4"}" fill="var(--bg-surface)" stroke="${col}" stroke-width="1.6"></circle>
-          <text x="${reg.tx}" y="${reg.ty - 5}" text-anchor="${reg.align}" fill="${isSel ? "var(--text-primary)" : "var(--text-secondary)"}" font-size="11" font-weight="${isSel ? "700" : "600"}" font-family="var(--font-sans)">${escapeHtml(shortName)}</text>
-          <text x="${reg.tx}" y="${reg.ty + 8}" text-anchor="${reg.align}" fill="${col}" font-size="10.5" font-weight="700" font-family="var(--font-mono)">${escapeHtml(priceText)}</text>
+          <text class="map-label-name" x="${reg.tx}" y="${reg.ty - 5}" text-anchor="${reg.align}" fill="${isSel ? "var(--text-primary)" : "var(--text-secondary)"}" font-size="11.5" font-weight="${isSel ? "700" : "600"}" font-family="var(--font-sans)">${escapeHtml(shortName)}</text>
+          <text class="map-label-price" x="${reg.tx}" y="${reg.ty + 9}" text-anchor="${reg.align}" fill="${col}" font-size="11" font-weight="700" font-family="var(--font-mono)">${escapeHtml(priceText)}</text>
         </g>
       `;
     }).join("");
 
-    const selectedRec = selectedProvince ? byName[selectedProvince] : null;
-    const selectedInfo = selectedRec
-      ? `${selectedProvince}: ${formatRp(selectedRec.price_idr)} per kg (Peringkat ke-${selectedRec.rank} dari 6 provinsi)`
-      : "Pilih provinsi pada peta atau daftar di samping untuk melihat perbandingannya.";
+    const selectedInfo = formatMapCaption(byName, selectedProvince);
 
     container.innerHTML = `
-      <div class="sulawesi-map-wrap">
+      <div class="sulawesi-map-wrap" role="region" aria-label="Peta sebaran harga beras Sulawesi">
         <svg viewBox="0 0 430 336" width="100%" height="268" role="group" aria-label="Peta interaktif 6 provinsi Pulau Sulawesi">
-          <rect x="4" y="4" width="422" height="328" rx="2" fill="var(--bg-subtle)" fill-opacity="0.45" stroke="var(--border-subtle)" stroke-width="1"></rect>
+          <rect x="4" y="4" width="422" height="328" rx="2" fill="var(--bg-subtle)" fill-opacity="0.28" stroke="var(--border-subtle)" stroke-width="1"></rect>
           ${shapesHtml}
         </svg>
-        <p class="card-desc" id="map-selection-caption">${escapeHtml(selectedInfo)}</p>
+        <p class="card-desc" id="map-selection-caption" aria-live="polite">${escapeHtml(selectedInfo)}</p>
       </div>
     `;
 
@@ -143,5 +148,49 @@ window.PBS = window.PBS || {};
         }
       });
     });
+  };
+
+  window.PBS.updateSulawesiMapSelection = function updateSulawesiMapSelection(container, rankings, selectedProvince) {
+    if (!container) return;
+    const byName = {};
+    (rankings || []).forEach((r) => {
+      byName[r.province] = r;
+    });
+
+    container.querySelectorAll(".map-region").forEach((g) => {
+      const prov = g.getAttribute("data-province");
+      const isSel = selectedProvince === prov;
+      g.classList.toggle("is-selected", isSel);
+      g.setAttribute("aria-pressed", isSel ? "true" : "false");
+
+      g.querySelectorAll("path").forEach((p) => {
+        p.setAttribute("fill-opacity", isSel ? "1" : "0.72");
+        p.setAttribute("stroke", isSel ? "var(--text-primary)" : "var(--bg-surface)");
+        p.setAttribute("stroke-width", isSel ? "2.4" : "1.6");
+      });
+
+      const line = g.querySelector("line");
+      if (line) {
+        line.setAttribute("stroke", isSel ? "var(--text-primary)" : "var(--border-strong)");
+        line.setAttribute("stroke-width", isSel ? "1.6" : "1");
+        line.setAttribute("stroke-dasharray", isSel ? "none" : "2 2");
+      }
+
+      const circle = g.querySelector("circle");
+      if (circle) {
+        circle.setAttribute("r", isSel ? "3.5" : "2.4");
+      }
+
+      const nameText = g.querySelector(".map-label-name");
+      if (nameText) {
+        nameText.setAttribute("fill", isSel ? "var(--text-primary)" : "var(--text-secondary)");
+        nameText.setAttribute("font-weight", isSel ? "700" : "600");
+      }
+    });
+
+    const caption = container.querySelector("#map-selection-caption");
+    if (caption) {
+      caption.textContent = formatMapCaption(byName, selectedProvince);
+    }
   };
 })();

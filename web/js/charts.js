@@ -3,6 +3,49 @@ window.PBS = window.PBS || {};
 (function () {
   const { formatRp, formatDateId, PROVINCE_COLOR_VARS, PROVINCE_SHORT, escapeHtml } = window.PBS;
 
+  function bindRovingChartNavigation(nodes, initialActivePos, onShow, onHide, getDataIdx) {
+    if (!nodes.length) return;
+    const setRoving = (pos) => {
+      nodes.forEach((n, idx) => n.setAttribute("tabindex", idx === pos ? "0" : "-1"));
+    };
+    setRoving(Math.max(0, Math.min(nodes.length - 1, initialActivePos)));
+
+    nodes.forEach((el, pos) => {
+      const dataIdx = getDataIdx(el, pos);
+      el.addEventListener("mouseenter", () => onShow(dataIdx));
+      el.addEventListener("click", () => {
+        setRoving(pos);
+        onShow(dataIdx);
+      });
+      el.addEventListener("focus", () => {
+        setRoving(pos);
+        onShow(dataIdx);
+      });
+      el.addEventListener("keydown", (ev) => {
+        let nextPos = null;
+        if (ev.key === "ArrowRight") nextPos = Math.min(nodes.length - 1, pos + 1);
+        else if (ev.key === "ArrowLeft") nextPos = Math.max(0, pos - 1);
+        else if (ev.key === "Home") nextPos = 0;
+        else if (ev.key === "End") nextPos = nodes.length - 1;
+        else if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          onShow(dataIdx);
+          return;
+        } else if (ev.key === "Escape") {
+          onHide();
+          return;
+        }
+
+        if (nextPos !== null) {
+          ev.preventDefault();
+          setRoving(nextPos);
+          if (typeof nodes[nextPos].focus === "function") nodes[nextPos].focus();
+          onShow(getDataIdx(nodes[nextPos], nextPos));
+        }
+      });
+    });
+  }
+
   window.PBS.renderStepSparkline = function renderStepSparkline(values, colorVar) {
     if (!values || values.length < 2) return "";
     const w = 136;
@@ -59,10 +102,10 @@ window.PBS = window.PBS || {};
     const yMax = Math.ceil((rawMax + padSpan) / 500) * 500;
     const ySpan = Math.max(500, yMax - yMin);
 
-    const w = 880;
-    const h = 300;
+    const w = 760;
+    const h = 280;
     const padL = 82;
-    const padR = 20;
+    const padR = 18;
     const padT = 18;
     const padB = 34;
     const plotW = w - padL - padR;
@@ -77,7 +120,7 @@ window.PBS = window.PBS || {};
       const val = yMin + (t / 4) * ySpan;
       const y = yOf(val).toFixed(1);
       gridHtml += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="var(--border-subtle)" stroke-width="1"></line>`;
-      gridHtml += `<text x="4" y="${Number(y) + 4}" fill="var(--text-muted)" font-size="11" font-family="var(--font-mono)">${escapeHtml(formatRp(val))}</text>`;
+      gridHtml += `<text x="4" y="${Number(y) + 4}" fill="var(--text-muted)" font-size="12" font-family="var(--font-mono)">${escapeHtml(formatRp(val))}</text>`;
     }
 
     const tickIndices = new Set([0, xLen - 1]);
@@ -90,7 +133,7 @@ window.PBS = window.PBS || {};
     [...tickIndices].sort((a, b) => a - b).forEach((idx) => {
       const x = xOf(idx).toFixed(1);
       const anchor = idx === 0 ? "start" : idx === xLen - 1 ? "end" : "middle";
-      xTicksHtml += `<text x="${x}" y="${h - 8}" text-anchor="${anchor}" fill="var(--text-muted)" font-size="11" font-family="var(--font-mono)">${escapeHtml(labelsArr[idx] || "")}</text>`;
+      xTicksHtml += `<text x="${x}" y="${h - 8}" text-anchor="${anchor}" fill="var(--text-muted)" font-size="12" font-family="var(--font-mono)">${escapeHtml(labelsArr[idx] || "")}</text>`;
     });
 
     let linesHtml = "";
@@ -136,7 +179,8 @@ window.PBS = window.PBS || {};
     for (let sIdx = 0; sIdx < sampleCount; sIdx++) {
       const idx = sampleCount === 1 ? 0 : Math.round((sIdx / (sampleCount - 1)) * (xLen - 1));
       const px = Math.max(padL, xOf(idx) - sliceW / 2).toFixed(1);
-      probesHtml += `<rect class="chart-probe" data-idx="${idx}" x="${px}" y="${padT}" width="${sliceW.toFixed(1)}" height="${plotH}" fill="transparent" tabindex="0" role="button" aria-label="Detail harga ${escapeHtml(labelsArr[idx] || "")}"></rect>`;
+      const tabAttr = sIdx === sampleCount - 1 ? "0" : "-1";
+      probesHtml += `<rect class="chart-probe" data-idx="${idx}" x="${px}" y="${padT}" width="${sliceW.toFixed(1)}" height="${plotH}" fill="transparent" tabindex="${tabAttr}" role="button" aria-label="Detail harga ${escapeHtml(labelsArr[idx] || "")} (gunakan panah kiri atau kanan)"></rect>`;
     }
 
     container.innerHTML = `
@@ -187,20 +231,14 @@ window.PBS = window.PBS || {};
       tooltip.hidden = false;
     };
 
-    container.querySelectorAll(".chart-probe").forEach((el) => {
-      const idx = Number(el.getAttribute("data-idx"));
-      el.addEventListener("mouseenter", () => showPoint(idx));
-      el.addEventListener("click", () => showPoint(idx));
-      el.addEventListener("focus", () => showPoint(idx));
-      el.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          showPoint(idx);
-        } else if (ev.key === "Escape") {
-          hideTooltip();
-        }
-      });
-    });
+    const probes = [...container.querySelectorAll(".chart-probe")];
+    bindRovingChartNavigation(
+      probes,
+      probes.length - 1,
+      showPoint,
+      hideTooltip,
+      (el) => Number(el.getAttribute("data-idx"))
+    );
     container.addEventListener("mouseleave", hideTooltip);
     container.addEventListener("focusout", (ev) => {
       if (!container.contains(ev.relatedTarget)) hideTooltip();
@@ -228,10 +266,10 @@ window.PBS = window.PBS || {};
     const ySpan = Math.max(400, yMax - yMin);
 
     const totalLen = hist.length + fc.length;
-    const w = 880;
-    const h = 270;
+    const w = 760;
+    const h = 255;
     const padL = 82;
-    const padR = 24;
+    const padR = 20;
     const padT = 22;
     const padB = 34;
     const plotW = w - padL - padR;
@@ -245,7 +283,7 @@ window.PBS = window.PBS || {};
       const val = yMin + (t / 4) * ySpan;
       const y = yOf(val).toFixed(1);
       gridHtml += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="var(--border-subtle)" stroke-width="1"></line>`;
-      gridHtml += `<text x="4" y="${Number(y) + 4}" fill="var(--text-muted)" font-size="11" font-family="var(--font-mono)">${escapeHtml(formatRp(val))}</text>`;
+      gridHtml += `<text x="4" y="${Number(y) + 4}" fill="var(--text-muted)" font-size="12" font-family="var(--font-mono)">${escapeHtml(formatRp(val))}</text>`;
     }
 
     const cutIdx = hist.length - 1;
@@ -270,19 +308,20 @@ window.PBS = window.PBS || {};
       [Math.floor(cutIdx / 2), hist[Math.floor(cutIdx / 2)].week],
       [totalLen - 1, `${formatDateId(fc[fc.length - 1].target_date)} (+${fc.length}M)`],
     ];
-    let xHtml = `<text x="${Number(cutX) - 6}" y="${padT + 11}" text-anchor="end" fill="var(--brand-primary)" font-size="11" font-weight="600" font-family="var(--font-mono)">Batas data: ${escapeHtml(formatDateId(payload.cutoff_date))}</text>`;
+    let xHtml = `<text x="${Number(cutX) - 6}" y="${padT + 12}" text-anchor="end" fill="var(--brand-primary)" font-size="12" font-weight="600" font-family="var(--font-mono)">Batas data: ${escapeHtml(formatDateId(payload.cutoff_date))}</text>`;
     ticks.forEach(([idx, lbl], pos) => {
       const anchor = pos === 0 ? "start" : pos === ticks.length - 1 ? "end" : "middle";
       const col = idx >= cutIdx ? "var(--brand-primary)" : "var(--text-muted)";
-      xHtml += `<text x="${xOf(idx).toFixed(1)}" y="${h - 8}" text-anchor="${anchor}" fill="${col}" font-size="11" font-family="var(--font-mono)">${escapeHtml(lbl)}</text>`;
+      xHtml += `<text x="${xOf(idx).toFixed(1)}" y="${h - 8}" text-anchor="${anchor}" fill="${col}" font-size="12" font-family="var(--font-mono)">${escapeHtml(lbl)}</text>`;
     });
 
     let ptsHtml = "";
     fc.forEach((p, i) => {
       const cx = xOf(hist.length + i).toFixed(1);
       const cy = yOf(p.predicted_idr).toFixed(1);
+      const tabAttr = i === 0 ? "0" : "-1";
       ptsHtml += `
-        <g class="fc-dot" data-fc="${i}" tabindex="0" role="button" aria-label="Prediksi minggu ${p.step_week}: ${escapeHtml(formatRp(p.predicted_idr))}">
+        <g class="fc-dot" data-fc="${i}" tabindex="${tabAttr}" role="button" aria-label="Prediksi minggu ${p.step_week}: ${escapeHtml(formatRp(p.predicted_idr))} (gunakan panah kiri atau kanan)">
           <circle cx="${cx}" cy="${cy}" r="22" fill="transparent"></circle>
           <circle cx="${cx}" cy="${cy}" r="5" fill="var(--brand-primary)" stroke="var(--bg-surface)" stroke-width="2"></circle>
         </g>
@@ -317,20 +356,14 @@ window.PBS = window.PBS || {};
       `;
       tooltip.hidden = false;
     };
-    container.querySelectorAll(".fc-dot").forEach((dot) => {
-      const idx = Number(dot.getAttribute("data-fc"));
-      dot.addEventListener("mouseenter", () => showFc(idx));
-      dot.addEventListener("click", () => showFc(idx));
-      dot.addEventListener("focus", () => showFc(idx));
-      dot.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          showFc(idx);
-        } else if (ev.key === "Escape") {
-          hideTooltip();
-        }
-      });
-    });
+    const dots = [...container.querySelectorAll(".fc-dot")];
+    bindRovingChartNavigation(
+      dots,
+      0,
+      showFc,
+      hideTooltip,
+      (el) => Number(el.getAttribute("data-fc"))
+    );
     container.addEventListener("mouseleave", hideTooltip);
     container.addEventListener("focusout", (ev) => {
       if (!container.contains(ev.relatedTarget)) hideTooltip();

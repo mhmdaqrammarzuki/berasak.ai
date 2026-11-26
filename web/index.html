@@ -16,6 +16,7 @@
   <script defer src="/js/articles.js"></script>
   <script defer src="/js/charts.js"></script>
   <script defer src="/js/sulawesi-map.js"></script>
+  <script defer src="/js/views-public.js"></script>
   <script defer src="/js/app.js"></script>
 </head>
 <body>
@@ -39,7 +40,7 @@
 
         <nav class="site-nav" aria-label="Navigasi utama">
           <a class="top-nav-link" href="#beranda" data-route="beranda">Beranda</a>
-          <a class="top-nav-link" href="#tren" data-route="tren">Tren</a>
+          <a class="top-nav-link" href="#tren" data-route="tren">Tren Harga</a>
           <a class="top-nav-link" href="#bandingkan" data-route="bandingkan">Wilayah</a>
           <a class="top-nav-link" href="#prakiraan" data-route="prakiraan">Prediksi</a>
 
@@ -58,9 +59,15 @@
                 <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter"></path>
               </svg>
             </button>
-            <div class="nav-dropdown-menu" id="data-dropdown-menu" hidden>
-              <a class="nav-dropdown-item" href="#kualitas" data-route="kualitas">Kualitas Data</a>
-              <a class="nav-dropdown-item" href="#unduh" data-route="unduh">Unduh Data CSV</a>
+            <div class="nav-dropdown-menu" id="data-dropdown-menu" role="menu" aria-label="Menu data" hidden>
+              <a class="nav-dropdown-item" href="#kualitas" data-route="kualitas" role="menuitem">
+                <span class="nav-dropdown-item-title">Kualitas Data</span>
+                <span class="nav-dropdown-item-sub">Kelengkapan &amp; lonjakan &gt;10%</span>
+              </a>
+              <a class="nav-dropdown-item" href="#unduh" data-route="unduh" role="menuitem">
+                <span class="nav-dropdown-item-title">Unduh CSV</span>
+                <span class="nav-dropdown-item-sub">Ekspor data terfilter</span>
+              </a>
             </div>
           </div>
 
@@ -147,14 +154,14 @@
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 6h10M4 12h16M4 18h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
             </svg>
-            <span class="nav-label">Peta &amp; Wilayah</span>
+            <span class="nav-label">Wilayah</span>
           </a>
           <a class="nav-item" href="#prakiraan" data-route="prakiraan">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 16l5-5 4 3 3-3m2-2h3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Prediksi Harga</span>
+            <span class="nav-label">Prediksi</span>
           </a>
         </div>
 
@@ -172,7 +179,7 @@
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 4v11m0 0-4-4m4 4 4-4M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Unduh Data CSV</span>
+            <span class="nav-label">Unduh CSV</span>
           </a>
         </div>
 
@@ -183,21 +190,21 @@
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M5 4h11l3 3v13H5V4Zm3 5h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Artikel &amp; Wawasan</span>
+            <span class="nav-label">Artikel</span>
           </a>
           <a class="nav-item" href="#panduan" data-route="panduan">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 17h.01M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.9.8-1.7 1.3-1.7 2.7v.5M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Panduan Pengguna</span>
+            <span class="nav-label">Panduan</span>
           </a>
           <a class="nav-item" href="#kontak" data-route="kontak">
             <span class="nav-indicator" aria-hidden="true"></span>
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            <span class="nav-label">Kontak &amp; Layanan</span>
+            <span class="nav-label">Kontak</span>
           </a>
         </div>
       </nav>
@@ -205,15 +212,16 @@
 
     <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
 
+    <div id="route-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
     <main class="main-content" id="main-content" tabindex="-1">
       <header class="page-header">
         <div class="page-title-block">
+          <nav class="page-breadcrumb" id="page-breadcrumb" aria-label="Jejak halaman" hidden></nav>
           <div class="masthead-eyebrow">
-            <span>berasak.ai</span>
-            <span aria-hidden="true">·</span>
-            <span>INDEKS HARGA BERAS SULAWESI</span>
-            <span aria-hidden="true">·</span>
             <span class="font-mono" id="dataset-period-note">Data 12 Feb 2026</span>
+            <span aria-hidden="true">·</span>
+            <span>PIHPS Bank Indonesia</span>
           </div>
           <h1 class="page-title" id="page-title">Pantauan Harga Beras Sulawesi</h1>
           <p class="page-subtitle" id="page-subtitle">Memuat ringkasan harga beras yang mudah dibaca untuk masyarakat Sulawesi.</p>
@@ -235,12 +243,12 @@
             </button>
           </div>
           <div class="toolbar-meta" id="segment-channel-hint">
-            Pasar Modern: harga eceran supermarket &amp; minimarket · Rp/kg
+            Pasar Modern: eceran ritel modern · Rp/kg
           </div>
         </div>
       </header>
 
-      <section id="view-root" aria-live="polite"></section>
+      <section id="view-root"></section>
     </main>
 
     <footer class="site-footer">
@@ -270,27 +278,27 @@
           <div class="footer-col">
             <h2 class="footer-heading">Pantauan &amp; Data</h2>
             <ul class="footer-links">
-              <li><a href="#beranda">Beranda &amp; Cek Harga</a></li>
-              <li><a href="#tren">Grafik Tren Harga</a></li>
-              <li><a href="#bandingkan">Peta &amp; Margin Wilayah</a></li>
-              <li><a href="#prakiraan">Prediksi 4-8 Minggu</a></li>
+              <li><a href="#beranda">Beranda</a></li>
+              <li><a href="#tren">Tren Harga</a></li>
+              <li><a href="#bandingkan">Wilayah</a></li>
+              <li><a href="#prakiraan">Prediksi</a></li>
               <li><a href="#kualitas">Kualitas Data</a></li>
-              <li><a href="#unduh">Unduh Dataset CSV</a></li>
+              <li><a href="#unduh">Unduh CSV</a></li>
             </ul>
           </div>
 
           <div class="footer-col">
             <h2 class="footer-heading">Artikel &amp; Panduan</h2>
             <ul class="footer-links">
-              <li><a href="#artikel">Semua Artikel Edukasi</a></li>
-              <li><a href="#panduan">Panduan &amp; Kamus Istilah</a></li>
+              <li><a href="#artikel">Artikel</a></li>
+              <li><a href="#panduan">Panduan</a></li>
               <li><a href="#artikel/memahami-beda-harga-produsen-tradisional-modern">Beda Harga Produsen &amp; Pasar</a></li>
               <li><a href="#artikel/cara-membaca-prediksi-harga-beras-untuk-belanja-dan-usaha">Cara Baca Prediksi Harga</a></li>
             </ul>
           </div>
 
           <div class="footer-col">
-            <h2 class="footer-heading">Kontak &amp; Layanan</h2>
+            <h2 class="footer-heading">Kontak</h2>
             <ul class="footer-contact-list">
               <li>
                 <span class="footer-contact-label">Email Layanan</span>
@@ -301,7 +309,7 @@
                 <a class="footer-contact-link font-mono" href="tel:67676996697">(6767) 6996697</a>
               </li>
             </ul>
-            <a class="btn btn-secondary footer-contact-btn" href="#kontak">Hubungi Layanan Pengguna</a>
+            <a class="btn btn-secondary footer-contact-btn" href="#kontak">Buka Halaman Kontak</a>
           </div>
         </div>
 
