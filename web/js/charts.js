@@ -167,7 +167,6 @@ window.PBS = window.PBS || {};
       guide.setAttribute("x2", xPos);
       guide.setAttribute("visibility", "visible");
 
-      // Flip tooltip left/right based on cursor side so recent data stays unobstructed
       tooltip.classList.toggle("is-left", xNum > padL + plotW * 0.52);
 
       let rowsHtml = "";
@@ -179,7 +178,7 @@ window.PBS = window.PBS || {};
         const flag = pt.is_anomaly ? " [Lonjakan >10%]" : pt.is_imputed ? " [Diisi otomatis]" : "";
         rowsHtml += `
           <div class="chart-tooltip-row">
-            <span style="color: ${col}">${escapeHtml(shortName)}</span>
+            <span class="series-label" style="--series-color: ${col}">${escapeHtml(shortName)}</span>
             <span>${escapeHtml(formatRp(pt.price_idr))}${escapeHtml(flag)}</span>
           </div>
         `;
@@ -212,7 +211,7 @@ window.PBS = window.PBS || {};
     const hist = payload.history_weekly || [];
     const fc = payload.forecast_points || [];
     if (!hist.length || !fc.length) {
-      window.PBS.renderEmpty(container, "Data prakiraan belum tersedia", "Pilih provinsi dan segmen pasar lain.");
+      window.PBS.renderEmpty(container, "Data prediksi belum tersedia", "Pilih provinsi dan saluran pasar lain.");
       return;
     }
 
@@ -266,7 +265,6 @@ window.PBS = window.PBS || {};
       .concat(fc.map((p, i) => `${xOf(hist.length + i).toFixed(1)},${yOf(p.predicted_idr).toFixed(1)}`))
       .join(" ");
 
-    // Place cutoff label at top of cutoff line and sparse X ticks at bottom so 4W/8W never collide
     const ticks = [
       [0, hist[0].week],
       [Math.floor(cutIdx / 2), hist[Math.floor(cutIdx / 2)].week],
@@ -284,7 +282,7 @@ window.PBS = window.PBS || {};
       const cx = xOf(hist.length + i).toFixed(1);
       const cy = yOf(p.predicted_idr).toFixed(1);
       ptsHtml += `
-        <g class="fc-dot" data-fc="${i}" tabindex="0" role="button" aria-label="Prakiraan minggu ${p.step_week}: ${escapeHtml(formatRp(p.predicted_idr))}">
+        <g class="fc-dot" data-fc="${i}" tabindex="0" role="button" aria-label="Prediksi minggu ${p.step_week}: ${escapeHtml(formatRp(p.predicted_idr))}">
           <circle cx="${cx}" cy="${cy}" r="22" fill="transparent"></circle>
           <circle cx="${cx}" cy="${cy}" r="5" fill="var(--brand-primary)" stroke="var(--bg-surface)" stroke-width="2"></circle>
         </g>
@@ -293,7 +291,7 @@ window.PBS = window.PBS || {};
 
     container.innerHTML = `
       <div class="chart-container">
-        <svg class="chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Grafik proyeksi harga beras">
+        <svg class="chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Grafik prediksi harga beras">
           ${gridHtml}
           <polygon points="${polyPts}" fill="var(--brand-primary)" opacity="0.18"></polygon>
           <line x1="${cutX}" y1="${padT}" x2="${cutX}" y2="${padT + plotH}" stroke="var(--border-strong)" stroke-width="1.5"></line>
@@ -314,7 +312,7 @@ window.PBS = window.PBS || {};
       const p = fc[i];
       tooltip.innerHTML = `
         <div class="chart-tooltip-title">Minggu +${p.step_week} (${escapeHtml(formatDateId(p.target_date))})</div>
-        <div class="chart-tooltip-row"><span>Prakiraan</span><span>${escapeHtml(formatRp(p.predicted_idr))}</span></div>
+        <div class="chart-tooltip-row"><span>Prediksi</span><span>${escapeHtml(formatRp(p.predicted_idr))}</span></div>
         <div class="chart-tooltip-row"><span>Rentang 90%</span><span>${escapeHtml(formatRp(p.lower_idr))} - ${escapeHtml(formatRp(p.upper_idr))}</span></div>
       `;
       tooltip.hidden = false;

@@ -117,13 +117,13 @@ window.PBS = window.PBS || {};
 
     const selectedRec = selectedProvince ? byName[selectedProvince] : null;
     const selectedInfo = selectedRec
-      ? `${selectedProvince}: ${formatRp(selectedRec.price_idr)}/kg (Peringkat #${selectedRec.rank} dari 6)`
-      : "Pilih provinsi pada peta atau daftar peringkat untuk menyorot perbandingan.";
+      ? `${selectedProvince}: ${formatRp(selectedRec.price_idr)} per kg (Peringkat ke-${selectedRec.rank} dari 6 provinsi)`
+      : "Pilih provinsi pada peta atau daftar di samping untuk melihat perbandingannya.";
 
     container.innerHTML = `
       <div class="sulawesi-map-wrap">
         <svg viewBox="0 0 430 336" width="100%" height="268" role="group" aria-label="Peta interaktif 6 provinsi Pulau Sulawesi">
-          <rect x="4" y="4" width="422" height="328" rx="6" fill="var(--bg-subtle)" fill-opacity="0.42" stroke="var(--border-subtle)" stroke-width="1"></rect>
+          <rect x="4" y="4" width="422" height="328" rx="2" fill="var(--bg-subtle)" fill-opacity="0.45" stroke="var(--border-subtle)" stroke-width="1"></rect>
           ${shapesHtml}
         </svg>
         <p class="card-desc" id="map-selection-caption">${escapeHtml(selectedInfo)}</p>

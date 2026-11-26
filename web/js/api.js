@@ -86,25 +86,25 @@ window.PBS.apiGet = async function apiGet(url) {
 };
 
 window.PBS.renderLoading = function renderLoading(container, label) {
-  const safe = window.PBS.escapeHtml(label || "Memuat data harga beras Sulawesi...");
+  const safe = window.PBS.escapeHtml(label || "Memuat informasi harga beras Sulawesi...");
   container.innerHTML = `
     <div class="feedback-card is-loading" role="status" aria-live="polite">
       <h2 class="feedback-title">${safe}</h2>
-      <p class="feedback-desc">Menyiapkan seri harga harian dan hasil evaluasi terbaru.</p>
+      <p class="feedback-desc">Sedang mengambil data harga terkini untuk Anda.</p>
       <div class="skeleton-bars" aria-hidden="true">
-        <div class="skeleton-bar" style="width: 100%"></div>
-        <div class="skeleton-bar" style="width: 82%"></div>
-        <div class="skeleton-bar" style="width: 64%"></div>
+        <div class="skeleton-bar skeleton-bar--full"></div>
+        <div class="skeleton-bar skeleton-bar--lg"></div>
+        <div class="skeleton-bar skeleton-bar--md"></div>
       </div>
     </div>
   `;
 };
 
 window.PBS.renderError = function renderError(container, message, onRetry) {
-  const safe = window.PBS.escapeHtml(message || "Terjadi gangguan saat menghubungi layanan lokal.");
+  const safe = window.PBS.escapeHtml(message || "Terjadi kendala saat memuat data dari server.");
   container.innerHTML = `
     <div class="feedback-card is-error" role="alert">
-      <h2 class="feedback-title">Gagal memuat data dari server</h2>
+      <h2 class="feedback-title">Data belum dapat dimuat</h2>
       <p class="feedback-desc">${safe}</p>
       <button type="button" class="btn btn-secondary" data-action="retry">Coba Muat Ulang</button>
     </div>
@@ -118,7 +118,7 @@ window.PBS.renderError = function renderError(container, message, onRetry) {
 window.PBS.renderEmpty = function renderEmpty(container, title, description, actionLabel, onAction) {
   const safeTitle = window.PBS.escapeHtml(title);
   const safeDesc = window.PBS.escapeHtml(description);
-  const safeBtn = window.PBS.escapeHtml(actionLabel || "Reset Filter");
+  const safeBtn = window.PBS.escapeHtml(actionLabel || "Reset Pilihan");
   container.innerHTML = `
     <div class="feedback-card">
       <h2 class="feedback-title">${safeTitle}</h2>
