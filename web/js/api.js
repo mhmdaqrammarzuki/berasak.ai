@@ -18,6 +18,15 @@ window.PBS.PROVINCE_SHORT = {
   "Sulawesi Utara": "Sulut",
 };
 
+window.PBS.PROVINCE_DASH_PATTERNS = {
+  "Sulawesi Tengah": "",
+  "Gorontalo": "7 3",
+  "Sulawesi Tenggara": "2 3",
+  "Sulawesi Utara": "9 3 2 3",
+  "Sulawesi Selatan": "12 4",
+  "Sulawesi Barat": "4 2 2 2",
+};
+
 window.PBS.escapeHtml = function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -54,6 +63,7 @@ window.PBS.formatPct = function formatPct(val) {
 };
 
 const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+window.PBS.MONTHS_ID = MONTHS_ID;
 
 window.PBS.formatDateId = function formatDateId(isoStr) {
   if (!isoStr || typeof isoStr !== "string") return "-";
@@ -62,6 +72,27 @@ window.PBS.formatDateId = function formatDateId(isoStr) {
   const mIdx = Number(parts[1]) - 1;
   const mon = MONTHS_ID[mIdx] || parts[1];
   return `${Number(parts[2])} ${mon} ${parts[0]}`;
+};
+
+window.PBS.formatMonthYearId = function formatMonthYearId(ymStr) {
+  if (!ymStr || typeof ymStr !== "string") return "-";
+  const parts = ymStr.trim().split("-");
+  if (parts.length < 2) return ymStr;
+  const mIdx = Number(parts[1]) - 1;
+  const mon = MONTHS_ID[mIdx] || parts[1];
+  return `${mon} ${parts[0]}`;
+};
+
+window.PBS.formatAxisDateId = function formatAxisDateId(raw, agg) {
+  if (!raw || typeof raw !== "string") return "-";
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return agg === "monthly" ? window.PBS.formatMonthYearId(trimmed) : window.PBS.formatDateId(trimmed);
+  }
+  if (/^\d{4}-\d{2}$/.test(trimmed)) {
+    return window.PBS.formatMonthYearId(trimmed);
+  }
+  return trimmed;
 };
 
 window.PBS.badgeHtml = function badgeHtml(variant, label, iconType = "dot") {
@@ -81,6 +112,19 @@ window.PBS.apiGet = async function apiGet(url) {
   const body = await resp.json().catch(() => ({}));
   if (!resp.ok) {
     throw new Error(body.error || `Gagal memuat data (HTTP ${resp.status}).`);
+  }
+  return body;
+};
+
+window.PBS.apiPost = async function apiPost(path, payload) {
+  const resp = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(body.error || "Permintaan gagal.");
   }
   return body;
 };

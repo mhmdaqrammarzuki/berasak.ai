@@ -6,7 +6,7 @@ Platform pemantauan, analisis wilayah, artikel edukasi, dan prediksi harga beras
 
 - **Sumber Data:** Pusat Informasi Harga Pangan Strategis (PIHPS) Bank Indonesia, mencakup 1.504 hari kalender (`2022-01-01` s/d `2026-02-12`) pada 3 saluran pasar: Pasar Modern, Pasar Tradisional, dan Tingkat Produsen.
 - **Total Observasi:** 27.072 baris terverifikasi (`3 saluran x 6 provinsi x 1.504 tanggal`).
-- **Mesin Prediksi:** Evaluasi deret waktu mingguan (jangka 4 minggu dan 8 minggu) menggunakan perbandingan 3 metode (Seasonal Naive, Moving Average 4W, dan ARIMA(1,1,0)) lengkap dengan rentang prediksi 90% serta metrik kesalahan (MAE dan MAPE).
+- **Mesin Prediksi JSB MLP:** Model **Jaringan Syaraf Buatan (Multi-Layer Perceptron)** berbasis `TensorFlow / Keras` (`Sequential`, `Dense` ReLU 32 -> 16 -> Linear 1, optimizer `Adam`, loss `MSE`) dengan 17 fitur masukan tabular (lag harga 1-4 minggu, momentum, siklus musiman `sin/cos`, one-hot saluran pasar & provinsi), normalisasi Min-Max pada data latih (`< 2025-01-01`), evaluasi uji *chronological walk-forward holdout* (`2025-01-01..2026-02-12`), rentang prediksi 90%, serta prediksi per tanggal (`2022-01-01..2028-12-31`).
 - **Antarmuka Web Publik:** Didesain dengan gaya **Minimalism & Swiss Style**, tipografi `Plus Jakarta Sans` dan `JetBrains Mono`, mode terang/gelap terkalibrasi WCAG AA, header/navbar responsif, footer terstruktur, cek cepat harga & estimasi belanja keluarga, peta interaktif Sulawesi, artikel edukasi (`#artikel`), panduan & kamus istilah (`#panduan`), serta halaman kontak resmi (`#kontak`).
 - **Kontak Layanan Pengguna:** `customer.service@berasak.ai.com` dan telepon `(6767) 6996697`.
 
@@ -15,7 +15,7 @@ Platform pemantauan, analisis wilayah, artikel edukasi, dan prediksi harga beras
 - `#beranda`: Cek cepat harga provinsi & kalkulator estimasi belanja beras, selisih antarprovinsi, peringkat 6 provinsi, dan artikel pilihan.
 - `#tren`: Grafik tren historis harian, mingguan, dan bulanan beserta rata-rata bergerak 4 minggu.
 - `#bandingkan`: Peringkat wilayah, peta interaktif Pulau Sulawesi, dan selisih harga produsen ke eceran.
-- `#prakiraan`: Prediksi 4-8 minggu ke depan lengkap dengan rentang wajar 90% dan tabel akurasi metode.
+- `#prakiraan`: Prediksi harga beras per tanggal (`2022-2028`) menggunakan **JSB MLP (TensorFlow/Keras)**, proyeksi mingguan +4/+8 minggu, kurva pelatihan loss, kontribusi fitur, serta hasil evaluasi data uji holdout.
 - `#kualitas`: Transparansi hari tanpa pelaporan dan perubahan harian di atas 10%.
 - `#unduh`: Pratinjau dan unduh dataset CSV (format memanjang atau melebar).
 - `#artikel` & `#artikel/<slug>`: Daftar artikel edukasi publik dengan filter kategori dan pencarian.
@@ -32,6 +32,9 @@ Platform pemantauan, analisis wilayah, artikel edukasi, dan prediksi harga beras
 ├── backend/
 │   └── server.py                   # Server HTTP REST API + penyaji berkas statis
 ├── data/
+│   ├── models/
+│   │   ├── jsb_mlp.keras             # Model TensorFlow/Keras JSB MLP terlatih
+│   │   └── jsb_mlp_artifacts.json    # Bobot, scaler Min-Max, kurva loss, dan metrik uji holdout
 │   ├── pantau_beras.db             # Basis data SQLite terindeks (observasi, statistik, proyeksi)
 │   ├── processed/                  # Ekspor CSV format wide dan long per saluran pasar
 │   ├── raw/archive.zip             # Arsip dataset mentah PIHPS
@@ -39,7 +42,9 @@ Platform pemantauan, analisis wilayah, artikel edukasi, dan prediksi harga beras
 ├── pipeline/
 │   ├── schema.sql                  # Skema tabel dan indeks SQLite
 │   ├── etl.py                      # Pipeline ekstraksi, pembersihan, dan normalisasi data
-│   └── forecast.py                 # Mesin proyeksi deret waktu dan evaluasi metrik
+│   ├── jsb_model.py                # Modul TensorFlow/Keras JSB MLP (Sequential Dense ReLU + inferensi)
+│   └── forecast.py                 # Pelatihan JSB, evaluasi holdout, dan penyimpanan proyeksi
+├── requirements.txt                # Dependensi Python (tensorflow-cpu & numpy)
 ├── tests/
 │   ├── test_pipeline.py            # Pengujian integritas ETL dan proyeksi
 │   └── test_api.py                 # Pengujian endpoint REST API dan ekspor CSV
@@ -51,19 +56,26 @@ Platform pemantauan, analisis wilayah, artikel edukasi, dan prediksi harga beras
 
 ## Cara Menjalankan
 
-Pastikan Python 3.10+ telah terpasang. Proyek ini menggunakan pustaka standar Python tanpa ketergantungan eksternal tambahan.
+Gunakan Python 3.12 (misalnya melalui virtualenv `.venv`) dengan dependensi dari `requirements.txt`.
 
-### 1. Menjalankan Pipeline ETL dan Proyeksi (Opsional, basis data sudah tersedia)
+### 0. Menyiapkan Virtual Environment
 
 ```bash
-python3 pipeline/etl.py
-python3 pipeline/forecast.py
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+### 1. Menjalankan Pipeline ETL, Pelatihan JSB MLP, dan Proyeksi
+
+```bash
+.venv/bin/python pipeline/etl.py
+.venv/bin/python pipeline/forecast.py
 ```
 
 ### 2. Menjalankan Server Aplikasi dan API
 
 ```bash
-PORT=8765 python3 backend/server.py
+PORT=8765 .venv/bin/python backend/server.py
 ```
 
 Buka `http://127.0.0.1:8765` di peramban untuk mengakses antarmuka **berasak.ai**.
@@ -71,7 +83,7 @@ Buka `http://127.0.0.1:8765` di peramban untuk mengakses antarmuka **berasak.ai*
 ### 3. Menjalankan Pengujian Otomatis
 
 ```bash
-python3 -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 ## Endpoint REST API Utama
@@ -81,6 +93,8 @@ python3 -m unittest discover -s tests -v
 - `GET /api/overview?segment=modern`: Ringkasan harga regional, disparitas provinsi, dan tren 90 hari terakhir.
 - `GET /api/trends?segment=modern&provinces=Sulawesi+Tengah&agg=monthly&range=1y`: Deret waktu historis harian, mingguan, atau bulanan.
 - `GET /api/compare?segment=modern&date=YYYY-MM-DD`: Perbandingan harga dan selisih margin antara Tingkat Produsen, Pasar Tradisional, dan Pasar Modern.
-- `GET /api/forecasts?segment=modern&province=Sulawesi+Tengah&horizon=4&model=arima_110`: Prediksi harga mingguan beserta evaluasi MAE dan MAPE ketiga metode.
+- `GET /api/forecasts?segment=modern&province=Sulawesi+Tengah&horizon=4&model=jsb_mlp`: Prediksi harga mingguan JSB MLP beserta evaluasi MAE, MAPE, RMSE, dan rincian arsitektur/pelatihan.
+- `GET /api/predict-date?segment=modern&province=Sulawesi+Selatan&date=YYYY-MM-DD`: Perkiraan harga berbasis JSB MLP untuk tanggal target (`2022-01-01` s/d `2028-12-31`), kisaran 90%, prospek 7 hari, dan penjelasan masukan fitur.
+- `GET /api/jsb-info?segment=modern&province=Sulawesi+Selatan`: Metadata lengkap arsitektur JSB MLP, kurva loss per epoch, kontribusi fitur, evaluasi holdout per provinsi, dan sampel perbandingan aktual vs prediksi pada data uji.
 - `GET /api/quality?segment=modern&province=all`: Ringkasan hari tanpa laporan dan deteksi lonjakan harga harian >10%.
 - `GET /api/export?segment=modern&provinces=all&shape=long&preview=0`: Pratinjau JSON dan unduh data terfilter dalam format CSV.

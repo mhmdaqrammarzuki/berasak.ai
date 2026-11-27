@@ -42,7 +42,7 @@ window.PBS = window.PBS || {};
       name: "Sulawesi Barat",
       cx: 108,
       cy: 186,
-      tx: 64,
+      tx: 72,
       ty: 170,
       align: "end",
       paths: [
@@ -117,8 +117,8 @@ window.PBS = window.PBS || {};
           ${pathsMarkup}
           <line x1="${reg.cx}" y1="${reg.cy}" x2="${leaderEndX}" y2="${leaderEndY}" stroke="${isSel ? "var(--text-primary)" : "var(--border-strong)"}" stroke-width="${isSel ? "1.6" : "1"}" stroke-dasharray="${isSel ? "none" : "2 2"}"></line>
           <circle cx="${reg.cx}" cy="${reg.cy}" r="${isSel ? "3.5" : "2.4"}" fill="var(--bg-surface)" stroke="${col}" stroke-width="1.6"></circle>
-          <text class="map-label-name" x="${reg.tx}" y="${reg.ty - 5}" text-anchor="${reg.align}" fill="${isSel ? "var(--text-primary)" : "var(--text-secondary)"}" font-size="11.5" font-weight="${isSel ? "700" : "600"}" font-family="var(--font-sans)">${escapeHtml(shortName)}</text>
-          <text class="map-label-price" x="${reg.tx}" y="${reg.ty + 9}" text-anchor="${reg.align}" fill="${col}" font-size="11" font-weight="700" font-family="var(--font-mono)">${escapeHtml(priceText)}</text>
+          <text class="map-label-name" x="${reg.tx}" y="${reg.ty - 5}" text-anchor="${reg.align}" fill="${isSel ? "var(--text-primary)" : "var(--text-secondary)"}" font-size="12" font-weight="${isSel ? "700" : "600"}" font-family="var(--font-sans)">${escapeHtml(shortName)}</text>
+          <text class="map-label-price" x="${reg.tx}" y="${reg.ty + 9}" text-anchor="${reg.align}" fill="${col}" font-size="12" font-weight="700" font-family="var(--font-mono)">${escapeHtml(priceText)}</text>
         </g>
       `;
     }).join("");
@@ -131,7 +131,7 @@ window.PBS = window.PBS || {};
           <rect x="4" y="4" width="422" height="328" rx="2" fill="var(--bg-subtle)" fill-opacity="0.28" stroke="var(--border-subtle)" stroke-width="1"></rect>
           ${shapesHtml}
         </svg>
-        <p class="card-desc" id="map-selection-caption" aria-live="polite">${escapeHtml(selectedInfo)}</p>
+        <p class="card-desc map-caption" id="map-selection-caption" aria-live="polite">${escapeHtml(selectedInfo)}</p>
       </div>
     `;
 
@@ -159,9 +159,12 @@ window.PBS = window.PBS || {};
 
     container.querySelectorAll(".map-region").forEach((g) => {
       const prov = g.getAttribute("data-province");
+      const rec = byName[prov];
+      const priceText = rec ? formatRp(rec.price_idr) : "-";
       const isSel = selectedProvince === prov;
       g.classList.toggle("is-selected", isSel);
       g.setAttribute("aria-pressed", isSel ? "true" : "false");
+      g.setAttribute("aria-label", `${prov}: ${priceText} per kg`);
 
       g.querySelectorAll("path").forEach((p) => {
         p.setAttribute("fill-opacity", isSel ? "1" : "0.72");
@@ -186,9 +189,14 @@ window.PBS = window.PBS || {};
         nameText.setAttribute("fill", isSel ? "var(--text-primary)" : "var(--text-secondary)");
         nameText.setAttribute("font-weight", isSel ? "700" : "600");
       }
+
+      const priceNode = g.querySelector(".map-label-price");
+      if (priceNode && rec) {
+        priceNode.textContent = priceText;
+      }
     });
 
-    const caption = container.querySelector("#map-selection-caption");
+    const caption = container.querySelector(".map-caption, #map-selection-caption");
     if (caption) {
       caption.textContent = formatMapCaption(byName, selectedProvince);
     }

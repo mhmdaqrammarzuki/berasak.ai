@@ -1,73 +1,78 @@
 # DESIGN.md - berasak.ai
 
 ## Design Read
-Reading this as: **berasak.ai**, an open public Indonesian regional rice-price portal for Sulawesi built in **Minimalism & Swiss Style** at dial **ENERGY 2 / RHYTHM 2 / MOTION 1**, supporting calibrated Light and Dark themes.
+Reading this as: public commodity monitoring portal and AI predictor for Sulawesi households and SMEs, in a Keyvo minimalist SaaS style, dial ENERGY 2 / RHYTHM 2 / MOTION 1.
+Dial: ENERGY 2 / RHYTHM 2 / MOTION 1
 
-## Three Dials
-- **ENERGY 2 (Balanced)**: Sharp architectural contrast (`#111111` ink on `#FFFFFF`/`#F8F8F6` paper in Light; `#F5F5F2` off-white on `#151716`/`#0D0E0D` graphite in Dark), structural `2px` section rules, and zero decorative blur, glass, or generic gradients.
-- **RHYTHM 2 (Consistent with intentional breaks)**: Sticky single-row Swiss header with accessible `Data` dropdown, unified channel switcher, public Quick Province Checker & Household Budget Estimator, asymmetric disparity hero with 6-province spectrum rail, hairline Ranked Price Ledger, clean prose article reader, and a 4-column Swiss footer.
-- **MOTION 1 (Hover, active, and focus transitions only)**: Fast (`120ms-180ms`) `cubic-bezier(0.2, 0, 0, 1)` interactive feedback on buttons, nav links, map regions, and chart probes; honors `prefers-reduced-motion: reduce`.
+**berasak.ai** is a public Indonesian regional rice-price monitoring and AI date-prediction portal for Sulawesi, reconstructed in the **Keyvo Minimalist SaaS** visual system with calibrated Light and Dark themes.
 
-## Identity Motif & Visual Decisions
-- **Brand Mark**: Wordmark `berasak.ai` (`SULAWESI` mono sub-label) paired with a minimal geometric step-chart square SVG (`2px` corner radius).
-- **Swiss Structural Grid**: Sharp radii (`0px` bars/tracks, `2px` controls/inputs, `4px` cards), `box-shadow: none` on flat surfaces, and hairline/thick border dividers separating editorial zones.
-- **Public Accessibility & Everyday Language**: Plain Indonesian labels (`Selisih Harga Antarprovinsi`, `Peringkat Harga 6 Provinsi`, `Prediksi 4-8 Minggu`), household kg budget estimator (`1` to `50` kg), 5 educational articles (`#artikel`), 3-step guide + glossary + FAQ (`#panduan`), and official support channels (`#kontak`: `customer.service@berasak.ai.com`, `(6767) 6996697`).
-- **Two-Font System**:
-  - `Plus Jakarta Sans` (`400`, `500`, `600`, `700`, `800`): Headings, prose (`max-width: 68ch`, `line-height: 1.72`), and UI controls.
-  - `JetBrains Mono` (`400`, `500`, `600`, `700`): Tabular Rupiah prices, percentages, calendar dates, MAE/MAPE decimals, and step numbers.
-- **WCAG AA Verified Contrast (Programmatically Audited)**:
-  - **Light mode**: Minimum text/chart ratio `5.59:1` (`>= 4.5:1`), minimum UI/border ratio `7.38:1` (`>= 3.0:1`).
-  - **Dark mode**: Minimum text/chart ratio `5.59:1` (`>= 4.5:1`), minimum UI/border ratio `4.13:1` (`>= 3.0:1`).
+## Core Design Principles
+- **Keyvo Surface Alternation**: Crisp full-bleed white (`#FFFFFF`) and subtle neutral (`#F7F8F7`) sections in Light mode (paired with `#061407` / `#0B1E0C` / `#112913` forest surfaces in Dark mode), framed by `#082609` dark-forest structural containers, `--footer-bg: #09270b` deep-forest footer matching `berasak-logo-dark.png` corner RGB `(9, 39, 11)` with `mix-blend-mode: lighten`, `#0A5F0A` emerald KPI cards, `#BEF9BE` mint brand marks, and `#18EE1A` electric-green CTA highlights.
+- **Zero-Slop Public Language**: Every metric, chart tooltip, status badge, and table column speaks directly to households and SMEs in plain Indonesian (`Harga Terbaru`, `Kondisi Pasar`, `Stabil`, `Waspada`, `Fluktuatif`, `Data Lengkap`, `Estimasi AI`, `Rentang Wajar 90%`, `Seluruh Provinsi`). Internal pipeline codes and raw audit jargon are strictly omitted from public charts and UI.
+- **Typography & Tabular Discipline**:
+  - `Plus Jakarta Sans` (`400`, `500`, `600`, `700`, `800`): Display headlines (`--tracking-tight: -0.03em`), section headings, body copy (`--prose-max: 68ch`, `--leading-relaxed: 1.72`), UI controls, non-currency KPI summaries (`.kpi-text-val`), and clean sans-serif tabular labels (`.tabular-nums`).
+  - `JetBrains Mono` (`400`, `500`, `600`, `700`): Tabular Rupiah prices, percentages, calendar dates, and accuracy decimals (`.font-mono`, `.num-cell`).
+  - **12px Minimum Typography Floor**: Component labels, table headers, eyebrows (`.masthead-eyebrow`), bar axis ticks (`.bar-axis-ticks`), bento micro-labels (`.bento-micro-label`), and mobile bottom navigation tabs (`.bottom-tab`) enforce `>= var(--text-xs)` (`12px`).
+- **Token-Driven SVG & Motion**: Charts (`charts.js`) and technical line-art illustrations (`illustrations.js`) read CSS custom properties via `getComputedStyle(document.documentElement)` with zero hard-coded hex colors outside `web/styles/tokens.css`, updating cleanly on `#theme-toggle`. Transitions honor `prefers-reduced-motion: reduce`.
 
-## Verified Token Specifications (Light / Dark)
+## Token Specifications (Light / Dark)
 
-### Surface, Border & Interaction Tokens
+### Brand & Surface Tokens
 | Token | Light | Dark | Purpose |
 |---|---|---|---|
-| `--bg-canvas` | `#F8F8F6` | `#0D0E0D` | Page canvas |
-| `--bg-surface` | `#FFFFFF` | `#151716` | Cards, header, footer, ledger, tables |
-| `--bg-subtle` | `#F0F0EC` | `#1F2220` | Recessed filter wells, table headers, glossary cards |
-| `--bg-elevated` | `#FFFFFF` | `#1B1E1C` | Floating chart tooltips and nav dropdown menu |
-| `--surface-hover` | `#ECECE7` | `#252927` | Hover background for buttons, rows, nav links |
-| `--surface-active` | `#E3E3DD` | `#2E3330` | Active/pressed surface tint |
-| `--border-subtle` | `#E2E2DC` | `#2B2F2C` | Hairline dividers |
-| `--border-strong` | `#52524E` | `#737B75` | Input outlines, active controls |
-| `--border-structural` | `#111111` | `#E8E8E3` | Swiss `2px` header/section/footer rules |
+| `--bg-canvas` | `#ffffff` | `#061407` | Page background canvas |
+| `--bg-surface` | `#ffffff` | `#0b1e0c` | Header, cards, platform table, inputs |
+| `--bg-subtle` | `#f7f8f7` | `#112913` | Alternating landing bands, filter strips, bento wells |
+| `--bg-mint` | `#d1ffce` | `#133315` | Mint accent surfaces and illustration highlights |
+| `--brand-forest` | `#082609` | `#082609` | Primary brand dark ink and showcase sidebar |
+| `--footer-bg` | `#09270b` | `#09270b` | Deep-forest footer matching `berasak-logo-dark.png` corner RGB `(9, 39, 11)` |
+| `--brand-emerald` | `#0a5f0a` | `#0a5f0a` | Featured KPI bento and AI highlight card surface |
+| `--brand-mint-logo` | `#bef9be` | `#bef9be` | Brand wordmark/icon accent on dark forest surfaces |
+| `--accent-electric` | `#18ee1a` | `#18ee1a` | Electric CTA banner surface and active forecast dots |
+| `--brand-primary` | `#0a6e0c` | `#6ee872` | Interactive links, active nav states, focus accents |
 
-### Text & Semantic Tokens (WCAG AA Verified on `--bg-surface`)
-| Token | Light | Ratio | Dark | Ratio |
-|---|---|---|---|---|
-| `--text-primary` | `#111111` | 18.88:1 | `#F5F5F2` | 16.49:1 |
-| `--text-secondary` | `#40403C` | 10.41:1 | `#B4B8B4` | 8.97:1 |
-| `--text-muted` | `#595954` | 7.04:1 | `#949A95` | 6.27:1 |
-| `--brand-primary` | `#0F5132` | 9.36:1 | `#3DD698` | 9.67:1 |
-| `--text-on-brand` | `#FFFFFF` | 9.36:1 on brand | `#071A12` | 9.67:1 on brand |
-| `--brand-subtle` | `#E6F2EC` | 8.15:1 (brand on subtle) | `#102B20` | 8.12:1 (brand on subtle) |
-| `--status-alert` | `#C42B1C` | 5.66:1 | `#FF7B6B` | 7.12:1 |
-| `--status-alert-text` on `--status-alert-subtle` | `#9B1C10` / `#FDECEB` | 7.16:1 | `#FF9588` / `#321714` | 7.81:1 |
-| `--status-info` on `--status-info-subtle` | `#184E8A` / `#EAF2FB` | 7.45:1 | `#7CBEFF` / `#132538` | 7.90:1 |
-| `--status-success` on `--status-success-subtle` | `#0F5132` / `#E6F2EC` | 8.15:1 | `#4BE0A5` / `#102B20` | 9.01:1 |
+### Text & Semantic Status Tokens
+| Token | Light | Dark | Purpose |
+|---|---|---|---|
+| `--text-primary` | `#082609` | `#eef6ee` | Headings, primary data values, row titles |
+| `--text-secondary` | `#3f5240` | `#b9cdb9` | Body copy, subheadings, secondary metadata |
+| `--text-muted` | `#556856` | `#8fae90` | Axis ticks, helper notes, uppercase field labels |
+| `--status-positive` / `-bg` | `#0a6e0c` / `#dffce0` | `#6be874` / `#0e2e10` | `Stabil` market condition and mint eyebrows |
+| `--status-warning` / `-bg` | `#8f5000` / `#fef3c7` | `#f6c25b` / `#2d2007` | `Waspada` moderate movement status |
+| `--status-danger` / `-bg` | `#9f2d34` / `#fce7e9` | `#ff9ea4` / `#341316` | `Fluktuatif` movement status and rose dilemma eyebrow |
 
-### Chart Series Tokens (6 Provinces)
-| Token | Province | Light | Ratio on Surface | Dark | Ratio on Surface |
-|---|---|---|---|---|---|
-| `--chart-sulteng` | Sulawesi Tengah | `#C42B1C` | 5.66:1 | `#FF7B6B` | 7.12:1 |
-| `--chart-gorontalo` | Gorontalo | `#945B00` | 5.59:1 | `#F2BC4D` | 10.36:1 |
-| `--chart-sultra` | Sulawesi Tenggara | `#2E449E` | 8.62:1 | `#95A9FF` | 8.06:1 |
-| `--chart-sulut` | Sulawesi Utara | `#0A6578` | 6.68:1 | `#4ED3E6` | 10.11:1 |
-| `--chart-sulsel` | Sulawesi Selatan | `#0F5132` | 9.36:1 | `#3DD698` | 9.67:1 |
-| `--chart-sulbar` | Sulawesi Barat | `#6E3E85` | 7.80:1 | `#D2A0E8` | 8.52:1 |
+### Typography Scale
+| Token | Size | Usage |
+|---|---|---|
+| `--text-3xl` | `clamp(1.875rem, 3.6vw, 2.75rem)` | Primary hero & metric display scale |
+| `--text-2xl` | `clamp(1.5rem, 2.6vw, 2.125rem)` | Page headers (`--text-2xl`) and section KPIs |
+| `--text-xl` | `1.5rem` | Featured article headings and workflow preview values |
+| `--text-md` / `--text-lg` | `1.125rem` / `1.25rem` | Card titles and section sub-headings |
+| `--text-sm` / `--text-base` | `0.875rem` / `1rem` | Controls, tables, and body paragraphs |
+| `--text-xs` / `--text-2xs` | `0.75rem` / `0.6875rem` | Typography floor (`>= 12px`) across labels, table headers, axis ticks, and bottom tabs / legacy micro-scale token |
 
-## Post-Audit UX & Interaction Enhancements
-- **Modular Client Architecture (`index.html`, `views-public.js`, `app.js`)**:
-  - `web/js/views-public.js` isolates CSV export (`#unduh`), article reader/filter (`#artikel`), guide/glossary/FAQ (`#panduan`), and official contact channels/form (`#kontak`) on `window.PBS.publicViews`, keeping `web/js/app.js` focused on routing, navigation state, and analytics views.
-- **Navigation & Accessibility (`index.html`, `layout.css`, `app.js`)**:
-  - Canonical navigation labels (`Beranda`, `Tren Harga`, `Wilayah`, `Prediksi`, `Kualitas Data`, `Unduh CSV`, `Artikel`, `Panduan`, `Kontak`) unified across desktop bar, `Data` dropdown, mobile drawer, and 4-column footer.
-  - Desktop nav activation threshold lowered from `1080px` to `920px` so tablet/small-laptop viewports use the compact inline top navigation without hamburger indirection.
-  - Separate `#route-announcer` live region replaces `aria-live` on `#view-root`; `#main-content` receives focus on route navigation without focus-ring flash on mouse clicks; `#page-breadcrumb` displays contextual hierarchy for article pages; mobile drawer traps `Tab`/`Shift+Tab` and marks background landmarks `inert` + `aria-hidden`; `Data` dropdown implements `role="menu"` / `role="menuitem"` arrow/Home/End/Escape/focusout keyboard control.
-- **Cognitive Load & Hierarchy (`components.css`, `app.js`)**:
-  - Unified `.overview-hero` on `#beranda` combines Cek Cepat + Estimasi Belanja alongside Selisih Antarprovinsi via a hairline `1px` split without stacked nested boxes; clicking any spectrum dot or province dropdown updates estimates, dot state, and active ledger row in place with persisted preferences (`localStorage`).
-  - Calm/unchanged provinces render quiet `Stabil` labels instead of competing badge chips; alert strings containing internal code `R5` are normalized to `>10%` in UI rendering; bottom `#beranda`/`#panduan` support strips removed to avoid duplicating the footer; glossary uses a 2-column semantic `<dl class="glossary-list">` and `#kontak` channels use hairline rows inside a single card.
-  - `#tren`, `#bandingkan`, `#prakiraan`, `#kualitas`, and `#unduh` keep filter forms/strips mounted across option changes (zero focus loss), add `.panel-loading` opacity feedback, cache client-side chart overlays (`MA 4W` & markers) on `#tren`, support clickable table rows on `#bandingkan` and `#prakiraan`, expose min/max spread across all 6 provinces on `#kualitas`, and align all table `th.num-head` headers with right-aligned `td.num-cell` values.
-- **Charts & Map (`charts.js`, `sulawesi-map.js`)**:
-  - SVG charts implement roving `tabindex` with `ArrowLeft`/`ArrowRight`/`Home`/`End`/`Escape` navigation and `12px` axis labels; `window.PBS.updateSulawesiMapSelection` updates map selection attributes in place without replacing SVG nodes.
+## 8-Section Landing Architecture (`#beranda`)
+1. **Sticky Header (`#site-header`)**: Geometric `berasak.ai` mark (`BerasakIllustrations.brandMarkSvg`), primary nav (`Tren`, `Wilayah`, `Prediksi AI`, `Artikel`, `Data` dropdown), `Hubungi Kami`, `Prediksi AI` CTA, `#theme-toggle`, and mobile `#nav-toggle` drawer.
+2. **Hero + Asymmetric Bento (`.landing-band--white`)**: Headline + dual CTAs paired with interactive `.bento-checker` (live `/api/predict-date` across 3 channels), `.bento-illus` (`heroMintSvg`), `.bento-kpi` (`#0A5F0A`), and CSV/Article utility tiles.
+3. **Tantangan Pasar (`.landing-band--subtle`)**: 3-column borderless `.dilemma-grid` (`fragmented`, `volatility`, `delayed` technical illustrations).
+4. **Satu Platform Showcase (`.landing-band--white`)**: `.platform-window` with `#082609` `.platform-sidebar`, live search, date picker, 6-province table, anchored `.platform-popover` insight dialog, and 4 `.feature-card` pillars below.
+5. **Cara Kerja Workflow (`.landing-band--subtle`)**: 2-column `.workflow-split` combining channel/time pills (`Hari Ini`, `Besok`, `+30 Hari`) with live price + `Rentang Wajar 90%` preview.
+6. **Wawasan & Transparansi (`.landing-band--white`)**: Balanced `2+3` layout combining a 2-column `.landing-trust-row` (`Data Resmi PIHPS` and `Estimasi Transparan`) above a 3-column `.landing-articles-row` for featured articles (`penyebab-kenaikan-harga-beras-global-dan-nasional`, `langkah-pemerintah-menjaga-stabilitas-harga-beras`, `tips-trik-belanja-dan-menyimpan-beras-hemat-anti-kutu`) plus centered `.landing-articles-cta`, eliminating any empty 6th grid cell.
+7. **Electric Green CTA Banner (`.cta-electric-banner`)**: `#18EE1A` surface with dot halftone corner mask, `ctaTabletSvg()`, and dual `#082609` / `#FFFFFF` action buttons.
+8. **Deep-Forest Footer (`#global-footer`)**: Navigation links, official support contacts (`customer.service@berasak.ai.com`, `(6767) 6996697`), smooth scroll `#back-to-top-btn`, and oversized wordmark asset.
+
+## Interior Workspaces & Accessibility
+- **Routes Preserved**: `#tren` (token-aware SVG multi-series chart + garis tren 4 minggu with inline color and stroke-pattern legend `.chart-series-legend` / `.chart-legend-guides`), `#bandingkan` (rankings + Sulawesi interactive map + supply-chain spread), `#prakiraan` (JSB-only TensorFlow/Keras MLP AI Date Predictor), `#kualitas` (`Ringkasan Data` 5-column ledger + `.kpi-text-val` non-currency KPIs + Sulawesi map), `#unduh`, `#artikel`, `#panduan`, and `#kontak`.
+- **JSB-Only Architecture & UX (`#prakiraan`)**:
+  - Single verified JSB (Jaringan Saraf Berkelanjutan, TensorFlow/Keras MLP) predictor covering `2022-01-01`..`2028-12-31` and defaulting to local today, with zero legacy models in UI or copy.
+  - Inline Rupiah KPI formatting (`.kpi-price-inline`, `.kpi-unit`, `.kpi-model-name`) prevents `/ kg` wrapping inside `.ai-outlook-card.is-highlight`; `.ai-range-val` and single-line `.ai-range-labels` keep Min/Maks bounds readable.
+  - Dedicated 7-day `.ai-daily-grid` pairs the active day full-width above a `3x2` grid on mobile (`< 640px`), flows to 4 columns at `640px`, and sits in 1 full 7-card row on desktop (`>= 1120px`), with layout-stable hover/active states on `[data-ai-jump-date]`.
+  - Weekly horizon controls (`.jsb-controls-row` + `.jsb-controls-meta`) align 4/8-week chart toggles with JSB metadata.
+  - Hairline `.jsb-split-grid` panels display feature-importance bars (`.jsb-fi-list`, `.jsb-fi-name`, `.jsb-fi-track`, `.jsb-fi-fill` with `.is-zero` suppression) alongside JSB layer architecture cards (`.jsb-arch-grid`, `.jsb-arch-name`, `.jsb-arch-card`), training/holdout tables (`font-size >= var(--text-xs)`), and `.badge-warning` amber status badges.
+- **Interior Layout, Touch Targets & Mobile Reflow**:
+  - `#quality-page-shell .grid-compare-split` allocates `1.32fr` / `0.88fr` on desktop (`>= 1024px`) with `10px` table padding so the 5-column `#kualitas` table displays `Status Pasar` without horizontal clipping.
+  - `#unduh` uses a `326px` filter sidebar (`minmax(0, 326px) minmax(0, 1fr)`), `#export-preview-mount .data-table` compact density, and stacked date fields (`#export-form .export-dates-stack`).
+  - `#panduan` uses flex-column `.guide-step-card` layout so CTA buttons align along the bottom edge, and `.faq-chevron` rotates smoothly on `[open]` accordions.
+  - `#kontak` enforces `[hidden] { display: none !important; }` and explicit `.contact-result-card[hidden], .form-error-summary[hidden]` hiding.
+  - Mobile `< 640px` hides `.header-actions .header-primary-btn` so the sticky header fits cleanly at `375px`; `.platform-toolbar` stays single-row on `>= 768px`; `.platform-sidebar-nav` wraps cleanly below `960px`; `.workflow-step-pills` keeps 3 equal columns.
+- **Keyboard, Touch & Screen Reader Support**: All charts provide roving `tabindex` (`ArrowLeft`, `ArrowRight`, `Home`, `End`, `Escape`) and `aria-live="polite"` readouts. Interactive controls keep `>= 44x44px` hit areas across all breakpoints (`.skip-link`, `.footer-nav a`, `.table-row-btn`, `.contact-value`, `.ai-chip`, `.preset-chip`, `.bento-channel-pill`, `.bento-micro-stat`, `.platform-row-btn`, `.workflow-step-pill`), `touch-action: manipulation`, pointer cursors (`[role="menuitem"]` included), `not-allowed` for disabled states, mobile `scroll-padding-bottom` preventing `.mobile-bottom-nav` from obscuring focused controls (WCAG 2.2 AA), focus traps on mobile drawer, and deterministic `Escape` dismissal order: `.platform-popover` -> header `Data` dropdown -> mobile drawer.

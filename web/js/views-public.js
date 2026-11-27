@@ -12,6 +12,39 @@ window.PBS = window.PBS || {};
     ARTICLES = [],
   } = window.PBS;
 
+  const MIN_DATA_DATE = "2022-01-01";
+  const MAX_DATA_DATE = "2026-02-12";
+
+  const EXPORT_COL_LABELS = {
+    tanggal: "Tanggal",
+    provinsi: "Provinsi",
+    harga_rp_per_kg: "Harga (Rp/kg)",
+    pct_change_harian: "Perubahan (%)",
+    is_imputed: "Imputasi",
+    is_anomaly: "Lonjakan",
+    tahun: "Tahun",
+    bulan: "Bulan",
+    jumlah_imputasi_tanggal: "Jml Imputasi",
+  };
+
+  const SLUG_ALIASES = {
+    "cara-membaca-prediksi-harga-beras-untuk-belanja-dan-usaha": "cara-memanfaatkan-prediksi-harga-ai-untuk-belanja",
+    "strategi-praktis-mengelola-stok-beras-saat-harga-berfluktuasi": "tips-trik-belanja-dan-menyimpan-beras-hemat-anti-kutu",
+    "mengenal-sumber-data-pihps-dan-cara-membaca-anomali": "langkah-pemerintah-menjaga-stabilitas-harga-beras",
+  };
+
+  function buildExportQuery(cfg) {
+    const provParam = cfg.provinces.length === 6 ? "all" : cfg.provinces.join(",");
+    return `segment=${encodeURIComponent(cfg.segment)}&provinces=${encodeURIComponent(provParam)}&from=${encodeURIComponent(cfg.from)}&to=${encodeURIComponent(cfg.to)}&shape=${encodeURIComponent(cfg.shape)}&include_flags=${cfg.includeFlags ? "1" : "0"}`;
+  }
+
+  function clampDataDate(dateStr, fallback) {
+    if (!dateStr || typeof dateStr !== "string") return fallback;
+    if (dateStr < MIN_DATA_DATE) return MIN_DATA_DATE;
+    if (dateStr > MAX_DATA_DATE) return MAX_DATA_DATE;
+    return dateStr;
+  }
+
   function syncExportFormUI() {
     const { state, els } = window.PBS.app;
     const cfg = state.exportCfg;
@@ -22,6 +55,11 @@ window.PBS = window.PBS || {};
     const toEl = document.getElementById("exp-to");
     if (fromEl && fromEl.value !== cfg.from) fromEl.value = cfg.from;
     if (toEl && toEl.value !== cfg.to) toEl.value = cfg.to;
+
+    const fromLabel = document.getElementById("exp-from-label");
+    const toLabel = document.getElementById("exp-to-label");
+    if (fromLabel) fromLabel.textContent = `Dari Tanggal (${formatDateId(cfg.from)})`;
+    if (toLabel) toLabel.textContent = `Sampai Tanggal (${formatDateId(cfg.to)})`;
 
     els.viewRoot.querySelectorAll('input[name="exp_prov"]').forEach((cb) => {
       cb.checked = cfg.provinces.includes(cb.value);
@@ -42,8 +80,7 @@ window.PBS = window.PBS || {};
     if (!previewMount) return;
 
     const cfg = state.exportCfg;
-    const provParam = cfg.provinces.length === 6 ? "all" : cfg.provinces.join(",");
-    const qs = `segment=${encodeURIComponent(cfg.segment)}&provinces=${encodeURIComponent(provParam)}&from=${encodeURIComponent(cfg.from)}&to=${encodeURIComponent(cfg.to)}&shape=${encodeURIComponent(cfg.shape)}&include_flags=${cfg.includeFlags ? "1" : "0"}`;
+    const qs = buildExportQuery(cfg);
 
     const hadResults = previewMount.children.length > 0 && !previewMount.querySelector(".feedback-card");
     if (hadResults) {
@@ -62,12 +99,15 @@ window.PBS = window.PBS || {};
         dlBtn.textContent = `Unduh CSV (${formatInt(prev.total_rows)} baris)`;
       }
 
+      const colLabels = prev.columns.map((c) => EXPORT_COL_LABELS[c] || c);
+      const isNumCol = (colName) => colName !== "provinsi";
+
       previewMount.innerHTML = `
         <div class="card">
           <div class="card-header">
             <div>
               <h2 class="card-title">Pratinjau 5 Baris Pertama</h2>
-              <p class="card-desc">${formatInt(prev.total_rows)} baris siap unduh · ${escapeHtml(formatDateId(prev.start_date))} s/d ${escapeHtml(formatDateId(prev.end_date))}</p>
+              <p class="card-desc">${escapeHtml(formatInt(prev.total_rows))} baris siap unduh · ${escapeHtml(formatDateId(prev.start_date))} s/d ${escapeHtml(formatDateId(prev.end_date))}</p>
             </div>
             <span class="badge badge-neutral font-mono">${escapeHtml(prev.filename)}</span>
           </div>
@@ -75,12 +115,15 @@ window.PBS = window.PBS || {};
           <div class="table-scroll">
             <table class="data-table">
               <thead>
-                <tr>${prev.columns.map((c, ci) => `<th class="${ci === 0 || ci >= 2 ? "num-head" : ""}">${escapeHtml(c)}</th>`).join("")}</tr>
+                <tr>${prev.columns.map((c, ci) => `<th scope="col" class="${isNumCol(c) ? "num-head" : ""}">${escapeHtml(colLabels[ci])}</th>`).join("")}</tr>
               </thead>
               <tbody>
-                ${prev.rows.map((row) => `
-                  <tr>${row.map((cell, ci) => `<td class="${ci === 0 || ci >= 2 ? "num-cell" : ""}">${escapeHtml(cell)}</td>`).join("")}</tr>
-                `).join("")}
+                ${prev.rows && prev.rows.length
+                  ? prev.rows.map((row) => `
+                    <tr>${row.map((cell, ci) => `<td class="${isNumCol(prev.columns[ci]) ? "num-cell" : ""}">${escapeHtml(cell == null ? "-" : String(cell))}</td>`).join("")}</tr>
+                  `).join("")
+                  : `<tr><td colspan="${prev.columns.length}" class="text-muted">Tidak ada baris data pada rentang tanggal dan filter pilihan Anda.</td></tr>`
+                }
               </tbody>
             </table>
           </div>
@@ -96,10 +139,12 @@ window.PBS = window.PBS || {};
     const { state, els, ALL_PROVINCES, safeStorageSet, syncNavAndSegmentUI } = window.PBS.app;
     const cfg = state.exportCfg;
     cfg.segment = state.segment;
+    cfg.from = clampDataDate(cfg.from, MIN_DATA_DATE);
+    cfg.to = clampDataDate(cfg.to, MAX_DATA_DATE);
+    if (cfg.from > cfg.to) cfg.from = cfg.to;
 
     if (!document.getElementById("export-page-shell")) {
-      const provParam = cfg.provinces.length === 6 ? "all" : cfg.provinces.join(",");
-      const qs = `segment=${encodeURIComponent(cfg.segment)}&provinces=${encodeURIComponent(provParam)}&from=${encodeURIComponent(cfg.from)}&to=${encodeURIComponent(cfg.to)}&shape=${encodeURIComponent(cfg.shape)}&include_flags=${cfg.includeFlags ? "1" : "0"}`;
+      const qs = buildExportQuery(cfg);
 
       els.viewRoot.innerHTML = `
         <div class="grid-export-split" id="export-page-shell">
@@ -116,7 +161,7 @@ window.PBS = window.PBS || {};
             </div>
 
             <div class="field-group">
-              <span class="field-label">Cakupan Provinsi (minimal 1)</span>
+              <span class="field-label">Pilih Provinsi (minimal 1)</span>
               <div class="chip-list">
                 ${ALL_PROVINCES.map((p) => `
                   <label class="check-label">
@@ -127,14 +172,14 @@ window.PBS = window.PBS || {};
               </div>
             </div>
 
-            <div class="grid-2col">
+            <div class="export-dates-stack">
               <div class="field-group">
-                <label class="field-label" for="exp-from">Dari Tanggal</label>
-                <input type="date" id="exp-from" class="input-control font-mono" value="${escapeHtml(cfg.from)}" min="2022-01-01" max="2026-02-12">
+                <label class="field-label" id="exp-from-label" for="exp-from">Dari Tanggal (${escapeHtml(formatDateId(cfg.from))})</label>
+                <input type="date" id="exp-from" class="input-control font-mono" value="${escapeHtml(cfg.from)}" min="${MIN_DATA_DATE}" max="${MAX_DATA_DATE}">
               </div>
               <div class="field-group">
-                <label class="field-label" for="exp-to">Sampai Tanggal</label>
-                <input type="date" id="exp-to" class="input-control font-mono" value="${escapeHtml(cfg.to)}" min="2022-01-01" max="2026-02-12">
+                <label class="field-label" id="exp-to-label" for="exp-to">Sampai Tanggal (${escapeHtml(formatDateId(cfg.to))})</label>
+                <input type="date" id="exp-to" class="input-control font-mono" value="${escapeHtml(cfg.to)}" min="${MIN_DATA_DATE}" max="${MAX_DATA_DATE}">
               </div>
             </div>
 
@@ -149,7 +194,7 @@ window.PBS = window.PBS || {};
 
             <label class="check-label" for="exp-flags">
               <input type="checkbox" id="exp-flags" ${cfg.includeFlags ? "checked" : ""}>
-              <span>Sertakan kolom penanda kualitas data</span>
+              <span>Sertakan kolom catatan tambahan CSV</span>
             </label>
 
             <a class="btn btn-primary" href="/api/export?${qs}&preview=0" download="berasak.csv" id="btn-download-csv">
@@ -183,7 +228,7 @@ window.PBS = window.PBS || {};
 
       document.getElementById("exp-from").addEventListener("change", (ev) => {
         if (!ev.target.value) return;
-        state.exportCfg.from = ev.target.value;
+        state.exportCfg.from = clampDataDate(ev.target.value, MIN_DATA_DATE);
         if (state.exportCfg.from > state.exportCfg.to) {
           state.exportCfg.to = state.exportCfg.from;
         }
@@ -193,7 +238,7 @@ window.PBS = window.PBS || {};
 
       document.getElementById("exp-to").addEventListener("change", (ev) => {
         if (!ev.target.value) return;
-        state.exportCfg.to = ev.target.value;
+        state.exportCfg.to = clampDataDate(ev.target.value, MAX_DATA_DATE);
         if (state.exportCfg.to < state.exportCfg.from) {
           state.exportCfg.from = state.exportCfg.to;
         }
@@ -219,12 +264,39 @@ window.PBS = window.PBS || {};
     await loadExportPreview();
   }
 
-  function renderArticleCardsContent(filteredArticles) {
+  function renderArticleCardHtml(art) {
+    return `
+      <article class="article-card">
+        <div class="article-card-body">
+          <div class="article-meta">
+            <span class="article-category">${escapeHtml(art.category)}</span>
+            <span>${escapeHtml(String(art.readMinutes))} menit baca</span>
+            <span>${escapeHtml(art.updatedLabel)}</span>
+          </div>
+          <h3 class="article-title">${escapeHtml(art.title)}</h3>
+          <p class="article-excerpt">${escapeHtml(art.excerpt)}</p>
+        </div>
+        <a class="btn btn-secondary" href="#artikel/${escapeHtml(art.slug)}">Baca Artikel</a>
+      </article>
+    `;
+  }
+
+  function renderArticleCardsContent(filteredArticles, filterState = {}) {
     if (!filteredArticles.length) {
+      const query = (filterState.query || "").trim();
+      const category = filterState.category || "Semua";
+      let emptyDesc = "Tidak ada artikel yang cocok dengan kata kunci atau kategori pilihan Anda.";
+      if (query && category !== "Semua") {
+        emptyDesc = `Tidak ada artikel yang cocok dengan filter "${query}" pada kategori "${category}". Coba kata kunci lain atau tampilkan semua artikel.`;
+      } else if (query) {
+        emptyDesc = `Tidak ada artikel yang cocok dengan filter "${query}". Coba kata kunci lain atau atur ulang pencarian.`;
+      } else if (category !== "Semua") {
+        emptyDesc = `Belum ada artikel yang tersedia pada kategori "${category}".`;
+      }
       return `
         <div class="feedback-card">
           <h2 class="feedback-title">Artikel tidak ditemukan</h2>
-          <p class="feedback-desc">Tidak ada artikel yang cocok dengan kata kunci atau kategori pilihan Anda.</p>
+          <p class="feedback-desc">${escapeHtml(emptyDesc)}</p>
           <button type="button" class="btn btn-secondary" id="reset-article-filter-btn">Reset Pencarian</button>
         </div>
       `;
@@ -235,7 +307,7 @@ window.PBS = window.PBS || {};
       <article class="article-featured">
         <div class="article-meta">
           <span class="article-category">${escapeHtml(featured.category)}</span>
-          <span>${featured.readMinutes} menit baca</span>
+          <span>${escapeHtml(String(featured.readMinutes))} menit baca</span>
           <span>Diperbarui ${escapeHtml(featured.updatedLabel)}</span>
         </div>
         <h2 class="article-featured-title">${escapeHtml(featured.title)}</h2>
@@ -247,19 +319,7 @@ window.PBS = window.PBS || {};
     const restHtml = rest.length
       ? `
         <div class="grid-article-index">
-          ${rest.map((art) => `
-            <article class="article-card">
-              <div class="article-card-body">
-                <div class="article-meta">
-                  <span class="article-category">${escapeHtml(art.category)}</span>
-                  <span>${art.readMinutes} menit baca</span>
-                </div>
-                <h3 class="article-title">${escapeHtml(art.title)}</h3>
-                <p class="article-excerpt">${escapeHtml(art.excerpt)}</p>
-              </div>
-              <a class="btn btn-secondary" href="#artikel/${escapeHtml(art.slug)}">Baca Artikel</a>
-            </article>
-          `).join("")}
+          ${rest.map(renderArticleCardHtml).join("")}
         </div>
       `
       : "";
@@ -267,10 +327,18 @@ window.PBS = window.PBS || {};
     return `${featuredHtml}${restHtml}`;
   }
 
+  function pickRelatedArticles(article) {
+    const others = ARTICLES.filter((a) => a.slug !== article.slug);
+    const sameCategory = others.filter((a) => a.category === article.category);
+    const otherCategories = others.filter((a) => a.category !== article.category);
+    return [...sameCategory, ...otherCategories].slice(0, 2);
+  }
+
   function renderArtikel(slug) {
     const { state, els, navigateTo } = window.PBS.app;
     if (slug) {
-      const article = ARTICLES.find((a) => a.slug === slug);
+      const resolvedSlug = SLUG_ALIASES[slug] || slug;
+      const article = ARTICLES.find((a) => a.slug === resolvedSlug);
       if (!article) {
         renderEmpty(
           els.viewRoot,
@@ -282,18 +350,30 @@ window.PBS = window.PBS || {};
         return;
       }
 
-      const related = ARTICLES.filter((a) => a.slug !== article.slug).slice(0, 2);
+      if (resolvedSlug !== slug) {
+        if (els.pageBreadcrumb) {
+          els.pageBreadcrumb.innerHTML = `<a href="#artikel">Artikel</a><span aria-hidden="true">/</span><span>${escapeHtml(article.category)}</span>`;
+          els.pageBreadcrumb.hidden = false;
+        }
+        if (els.pageTitle) els.pageTitle.textContent = article.title;
+        if (els.pageSubtitle) {
+          els.pageSubtitle.textContent = `${article.category} · ${article.readMinutes} menit baca · Diperbarui ${article.updatedLabel}`;
+        }
+        document.title = `${article.title} | berasak.ai`;
+      }
+
+      const related = pickRelatedArticles(article);
 
       els.viewRoot.innerHTML = `
         <article class="article-reader">
           <div class="article-meta">
             <span class="article-category">${escapeHtml(article.category)}</span>
-            <span>${article.readMinutes} menit baca</span>
+            <span>${escapeHtml(String(article.readMinutes))} menit baca</span>
             <span>Diperbarui ${escapeHtml(article.updatedLabel)}</span>
           </div>
 
           <div class="article-takeaways">
-            <h2 class="article-takeaways-title">Poin Utama Artikel</h2>
+            <h2 class="article-takeaways-title">Poin Utama</h2>
             <ul class="alert-list">
               ${article.takeaways.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
             </ul>
@@ -316,22 +396,10 @@ window.PBS = window.PBS || {};
 
         <section class="editorial-section" aria-label="Artikel terkait lainnya">
           <div class="section-bar">
-            <h2 class="section-heading">Artikel Lainnya di berasak.ai</h2>
+            <h2 class="section-heading">Artikel Terkait di berasak.ai</h2>
           </div>
           <div class="grid-article-index">
-            ${related.map((art) => `
-              <article class="article-card">
-                <div class="article-card-body">
-                  <div class="article-meta">
-                    <span class="article-category">${escapeHtml(art.category)}</span>
-                    <span>${art.readMinutes} menit baca</span>
-                  </div>
-                  <h3 class="article-title">${escapeHtml(art.title)}</h3>
-                  <p class="article-excerpt">${escapeHtml(art.excerpt)}</p>
-                </div>
-                <a class="btn btn-secondary" href="#artikel/${escapeHtml(art.slug)}">Baca Artikel</a>
-              </article>
-            `).join("")}
+            ${related.map(renderArticleCardHtml).join("")}
           </div>
         </section>
       `;
@@ -340,15 +408,24 @@ window.PBS = window.PBS || {};
 
     const categories = ["Semua", ...new Set(ARTICLES.map((a) => a.category))];
     const filterState = state.articlesFilter;
+    if (!categories.includes(filterState.category)) {
+      filterState.category = "Semua";
+    }
 
     const getFiltered = () => {
       const q = filterState.query.trim().toLowerCase();
       return ARTICLES.filter((a) => {
         const matchCat = filterState.category === "Semua" || a.category === filterState.category;
+        const takeawaysText = Array.isArray(a.takeaways) ? a.takeaways.join(" ").toLowerCase() : "";
+        const sectionsText = Array.isArray(a.sections)
+          ? a.sections.map((s) => `${s.heading || ""} ${(s.paragraphs || []).join(" ")}`).join(" ").toLowerCase()
+          : "";
         const matchQuery = !q
           || a.title.toLowerCase().includes(q)
           || a.excerpt.toLowerCase().includes(q)
-          || a.category.toLowerCase().includes(q);
+          || a.category.toLowerCase().includes(q)
+          || takeawaysText.includes(q)
+          || sectionsText.includes(q);
         return matchCat && matchQuery;
       });
     };
@@ -373,7 +450,7 @@ window.PBS = window.PBS || {};
               type="search"
               id="article-search-input"
               class="input-control"
-              placeholder="Cari topik, misal: prediksi atau pasar..."
+              placeholder="Cari topik, misal: HET, SPHP, kutu, atau JSB..."
               value="${escapeHtml(filterState.query)}"
             >
           </div>
@@ -401,7 +478,7 @@ window.PBS = window.PBS || {};
       if (countEl) {
         countEl.textContent = `Menampilkan ${matches.length} dari ${ARTICLES.length} artikel`;
       }
-      listMount.innerHTML = renderArticleCardsContent(matches);
+      listMount.innerHTML = renderArticleCardsContent(matches, filterState);
       const resetBtn = document.getElementById("reset-article-filter-btn");
       if (resetBtn) {
         resetBtn.addEventListener("click", () => {
@@ -438,78 +515,86 @@ window.PBS = window.PBS || {};
     const steps = [
       {
         num: "01",
-        title: "Pilih Saluran Pasar",
-        desc: "Di bagian atas halaman data, pilih Pasar Modern (supermarket), Pasar Tradisional (pasar rakyat), atau Tingkat Produsen (penggilingan) sesuai kebutuhan Anda.",
+        title: "Pilih Saluran Harga Beras",
+        desc: "Tentukan saluran yang ingin dipantau: Pasar Modern (supermarket), Pasar Tradisional (pasar rakyat), atau Tingkat Produsen (penggilingan padi).",
         ctaLabel: "Buka Beranda",
         ctaHref: "#beranda",
       },
       {
         num: "02",
-        title: "Cek Provinsi & Estimasi Belanja",
-        desc: "Gunakan Cek Cepat di Beranda untuk memilih provinsi Anda dan melihat perkiraan biaya kemasan 1 kg hingga 50 kg.",
+        title: "Bandingkan Wilayah & Tren",
+        desc: "Cek posisi harga di provinsi Anda pada halaman Wilayah, lalu amati arah kenaikan atau penurunan bulanan di halaman Tren.",
         ctaLabel: "Bandingkan Wilayah",
         ctaHref: "#bandingkan",
       },
       {
         num: "03",
-        title: "Baca Tren & Perkiraan Ke Depan",
-        desc: "Buka halaman Tren Harga untuk melihat riwayat harian atau bulanan, dan buka Prediksi untuk proyeksi 4 sampai 8 minggu ke depan.",
-        ctaLabel: "Lihat Tren Harga",
-        ctaHref: "#tren",
+        title: "Cek Estimasi Harga AI per Tanggal",
+        desc: "Masukkan tanggal rencana belanja Anda di Prediksi AI untuk melihat perkiraan harga per kilogram dari model Jaringan Syaraf Buatan (JSB MLP) beserta Rentang Wajar 90%.",
+        ctaLabel: "Buka Prediksi AI",
+        ctaHref: "#prakiraan",
       },
     ];
 
     const glossary = [
       {
+        term: "berasak.ai",
+        desc: "Platform pemantau dan estimasi harga beras untuk enam provinsi di Pulau Sulawesi berbasis catatan resmi PIHPS Bank Indonesia.",
+      },
+      {
         term: "Pasar Modern",
-        desc: "Harga beras eceran yang dipantau di gerai ritel modern seperti supermarket atau minimarket.",
+        desc: "Harga beras eceran yang dipantau di ritel modern seperti supermarket atau minimarket, umumnya sudah dalam kemasan bermerek.",
       },
       {
         term: "Pasar Tradisional",
-        desc: "Harga beras harian yang tercatat di pasar rakyat atau pasar tradisional setempat.",
+        desc: "Harga beras harian yang tercatat di pasar rakyat setempat, mencerminkan transaksi curah maupun karungan.",
       },
       {
         term: "Tingkat Produsen",
-        desc: "Harga beras di tingkat penggilingan padi atau distributor awal sebelum biaya kirim eceran.",
+        desc: "Harga beras di tingkat penggilingan padi atau pedagang besar awal sebelum ditambah ongkos angkut dan margin toko eceran.",
       },
       {
-        term: "Selisih Harga Antarprovinsi",
-        desc: "Jarak Rupiah per kilogram antara provinsi dengan harga termahal dan termurah di Sulawesi.",
-      },
-      {
-        term: "Rata-rata 4 Minggu (MA 4W)",
-        desc: "Garis bantu yang meratakan fluktuasi singkat agar arah pergerakan harga lebih mudah terbaca.",
+        term: "Estimasi Harga AI per Tanggal",
+        desc: "Perkiraan harga beras untuk tanggal belanja pilihan Anda menggunakan model Jaringan Syaraf Buatan (JSB MLP) yang dilatih pada data historis PIHPS dengan evaluasi holdout kronologis serta dilengkapi Rentang Wajar 90%.",
       },
       {
         term: "Rentang Wajar 90%",
-        desc: "Batas perkiraan bawah hingga atas pada grafik Prediksi sebagai gambaran ruang gerak harga.",
+        desc: "Batas perkiraan terendah hingga tertinggi di sekitar angka estimasi JSB MLP sebagai ruang aman saat menyusun anggaran belanja.",
       },
       {
-        term: "Hari Tanpa Laporan (Diisi Otomatis)",
-        desc: "Tanggal tanpa pembaruan laporan (misalnya hari libur), diisi dari harga hari sebelumnya dan tetap ditandai.",
+        term: "Selisih Harga Antarprovinsi",
+        desc: "Perbedaan harga per kilogram antara provinsi termahal dan termurah di Sulawesi akibat jarak angkut serta pasokan panen lokal.",
       },
       {
-        term: "Lonjakan Harian >10%",
-        desc: "Perubahan harga lebih dari sepuluh persen dalam satu hari yang diberi tanda khusus untuk verifikasi terbuka.",
+        term: "Garis Bantu 4 Minggu",
+        desc: "Garis bantu putus-putus pada grafik Tren untuk meratakan gejolak harian sehingga arah naik-turunnya harga lebih mudah dibaca.",
       },
     ];
 
     const faqs = [
       {
-        q: "Apakah angka di berasak.ai adalah harga satu merek beras tertentu?",
-        a: "Bukan. Angka pada berasak.ai merupakan harga rata-rata komoditas beras tingkat provinsi dari Pusat Informasi Harga Pangan Strategis (PIHPS) Bank Indonesia tanpa merinci merek atau varietas tertentu.",
+        q: "Apakah angka harga di berasak.ai berasal dari satu merek beras tertentu?",
+        a: "Bukan. Angka pada berasak.ai merupakan harga rata-rata komoditas beras tingkat provinsi dari PIHPS Bank Indonesia tanpa memisahkan satu merek atau varietas tertentu, sehingga tepat dijadikan acuan tren umum.",
       },
       {
-        q: "Mengapa harga di warung dekat rumah bisa berbeda dari angka di layar?",
-        a: "Harga di tingkat toko sangat dipengaruhi merek beras (medium atau premium), kemasan eceran, dan ongkos angkut setempat. Data berasak.ai paling tepat digunakan sebagai patokan tren dan perbandingan antarwilayah.",
+        q: "Mengapa harga di warung atau supermarket dekat rumah bisa sedikit berbeda?",
+        a: "Harga di toko dipengaruhi kelas mutu beras (Medium, Premium, atau Beras Khusus), ukuran kemasan, ongkos kirim setempat, dan promo toko. Anda dapat membandingkan saluran Pasar Tradisional dan Pasar Modern untuk melihat gambarannya.",
       },
       {
-        q: "Apakah grafik Prediksi menjamin harga pasti di masa depan?",
-        a: "Tidak. Prediksi dibuat secara statistik dari riwayat mingguan sebelumnya untuk membantu perkiraan anggaran dan stok. Selalu perhatikan rentang wajar 90% dan kondisi pasokan terbaru.",
+        q: "Bagaimana cara membaca estimasi harga AI per tanggal dan Rentang Wajar 90%?",
+        a: "Pilih provinsi, saluran pasar, lalu tentukan tanggal rencana belanja Anda di halaman Prediksi AI. Angka utama berasal dari model Jaringan Syaraf Buatan (JSB MLP) sebagai perkiraan paling mungkin, sedangkan batas atas Rentang Wajar 90% membantu menyiapkan dana cadangan yang aman.",
       },
       {
-        q: "Bisakah masyarakat atau mahasiswa mengunduh datanya secara gratis?",
-        a: "Ya. Buka menu Data lalu pilih Unduh CSV. Anda dapat memilih provinsi, rentang tanggal 2022 sampai 2026, serta bentuk tabel memanjang atau melebar sebelum mengunduh.",
+        q: "Kapan waktu yang baik melihat grafik tren sebelum membeli stok lebih banyak?",
+        a: "Biasakan mengecek grafik tren 30 hari hingga 1 tahun sebelum membeli karung 10 kg atau 25 kg. Jika harga mulai melandai saat musim panen, membeli untuk kebutuhan 2 sampai 4 minggu lebih bijak dibanding menimbun berlebihan.",
+      },
+      {
+        q: "Mengapa harga beras di antarprovinsi Sulawesi bisa terpaut ribuan rupiah?",
+        a: "Wilayah lumbung padi seperti Sulawesi Selatan dan Sulawesi Barat memiliki pasokan lebih dekat dengan penggilingan, sedangkan wilayah jalur pegunungan dan kepulauan membutuhkan biaya angkutan darat maupun kapal laut tambahan.",
+      },
+      {
+        q: "Bisakah data harga beras diunduh gratis untuk riset atau perencanaan usaha?",
+        a: "Bisa. Buka menu Data lalu pilih Unduh Data. Anda dapat memilih provinsi lewat daftar Pilih Provinsi, menentukan rentang tanggal, serta memilih bentuk tabel Memanjang atau Melebar untuk dibuka di Excel/Spreadsheet.",
       },
     ];
 
@@ -521,12 +606,12 @@ window.PBS = window.PBS || {};
         </div>
         <div class="grid-3col">
           ${steps.map((s) => `
-            <div class="card">
-              <span class="guide-step-num">${s.num}</span>
+            <article class="card guide-step-card">
+              <span class="guide-step-num">${escapeHtml(s.num)}</span>
               <h3 class="card-title">${escapeHtml(s.title)}</h3>
               <p class="card-desc">${escapeHtml(s.desc)}</p>
-              <a class="btn btn-secondary" href="${s.ctaHref}">${escapeHtml(s.ctaLabel)}</a>
-            </div>
+              <a class="btn btn-secondary" href="${escapeHtml(s.ctaHref)}">${escapeHtml(s.ctaLabel)}</a>
+            </article>
           `).join("")}
         </div>
       </section>
@@ -534,7 +619,7 @@ window.PBS = window.PBS || {};
       <section class="editorial-section" aria-label="Kamus istilah sederhana">
         <div class="section-bar">
           <h2 class="section-heading">Kamus Istilah Sederhana</h2>
-          <span class="section-note">Penjelasan singkat istilah yang muncul di grafik dan tabel</span>
+          <span class="section-note">Penjelasan singkat istilah yang sering muncul di berasak.ai</span>
         </div>
         <dl class="glossary-list">
           ${glossary.map((item) => `
@@ -594,8 +679,77 @@ window.PBS = window.PBS || {};
     }
   }
 
+  function formatSubmittedTimeId(isoStr) {
+    if (!isoStr) return "";
+    const parsed = new Date(isoStr);
+    if (Number.isNaN(parsed.getTime())) return String(isoStr);
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(parsed);
+    } catch (_) {
+      return String(isoStr);
+    }
+  }
+
+  async function postContactPayload(payload) {
+    if (typeof window.PBS.apiPost === "function") {
+      return window.PBS.apiPost("/api/contact", payload);
+    }
+    let res;
+    try {
+      res = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (_) {
+      const netErr = new Error("Server layanan pesan sedang tidak dapat dijangkau. Periksa koneksi Anda atau kirim melalui aplikasi email.");
+      netErr.isNetwork = true;
+      throw netErr;
+    }
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      data = null;
+    }
+
+    if (!res.ok) {
+      let detailMsg = "";
+      if (data) {
+        if (typeof data.detail === "string") {
+          detailMsg = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          detailMsg = data.detail.map((d) => (d && d.msg ? d.msg : String(d))).join("; ");
+        } else if (typeof data.message === "string") {
+          detailMsg = data.message;
+        }
+      }
+      const apiErr = new Error(detailMsg || `Pengiriman gagal diproses oleh server (kode ${res.status}).`);
+      apiErr.status = res.status;
+      throw apiErr;
+    }
+
+    return data;
+  }
+
   function renderKontak() {
     const { els, CONTACT_INFO } = window.PBS.app;
+    const contact = CONTACT_INFO || {
+      email: "customer.service@berasak.ai.com",
+      phoneDisplay: "(6767) 6996697",
+      phoneHref: "tel:67676996697",
+    };
+
     els.viewRoot.innerHTML = `
       <div class="grid-contact-split">
         <div class="card">
@@ -607,9 +761,9 @@ window.PBS = window.PBS || {};
           <div class="contact-channel-list">
             <div class="contact-channel-row">
               <span class="field-label">Email Layanan Pelanggan</span>
-              <a class="contact-value" href="mailto:${CONTACT_INFO.email}">${CONTACT_INFO.email}</a>
+              <a class="contact-value" href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>
               <div class="contact-channel-actions">
-                <a class="btn btn-secondary" href="mailto:${CONTACT_INFO.email}">Kirim Email</a>
+                <a class="btn btn-secondary" href="mailto:${escapeHtml(contact.email)}">Kirim Email</a>
                 <button type="button" class="btn btn-ghost" id="copy-email-btn">Salin Email</button>
                 <span class="copy-feedback" id="copy-email-status" aria-live="polite"></span>
               </div>
@@ -617,9 +771,9 @@ window.PBS = window.PBS || {};
 
             <div class="contact-channel-row">
               <span class="field-label">Telepon Layanan Pelanggan</span>
-              <a class="contact-value" href="${CONTACT_INFO.phoneHref}">${CONTACT_INFO.phoneDisplay}</a>
+              <a class="contact-value" href="${escapeHtml(contact.phoneHref)}">${escapeHtml(contact.phoneDisplay)}</a>
               <div class="contact-channel-actions">
-                <a class="btn btn-secondary" href="${CONTACT_INFO.phoneHref}">Hubungi Telepon</a>
+                <a class="btn btn-secondary" href="${escapeHtml(contact.phoneHref)}">Hubungi Telepon</a>
                 <button type="button" class="btn btn-ghost" id="copy-phone-btn">Salin Nomor</button>
                 <span class="copy-feedback" id="copy-phone-status" aria-live="polite"></span>
               </div>
@@ -627,18 +781,18 @@ window.PBS = window.PBS || {};
           </div>
 
           <p class="scope-footnote">
-            Seluruh data harga pada berasak.ai bersumber dari PIHPS Bank Indonesia (cakupan 1 Jan 2022 s/d 12 Feb 2026) untuk enam provinsi Pulau Sulawesi.
+            Seluruh data harga pada berasak.ai bersumber dari PIHPS Bank Indonesia (1 Jan 2022 s/d 12 Feb 2026) untuk enam provinsi Pulau Sulawesi.
           </p>
         </div>
 
         <div class="card">
           <div>
             <h2 class="card-title">Kirim Pesan atau Pertanyaan</h2>
-            <p class="card-desc">Siapkan pesan Anda di sini, lalu lanjutkan mengirim langsung melalui aplikasi email perangkat Anda.</p>
+            <p class="card-desc">Kirim pertanyaan, laporan kendala, atau masukan Anda langsung dari formulir ini untuk tercatat di sistem layanan pengguna berasak.ai.</p>
           </div>
 
           <div class="form-error-summary" id="contact-error-summary" tabindex="-1" role="alert" hidden>
-            <h3 class="form-error-title">Periksa kembali isian berikut:</h3>
+            <h3 class="form-error-title" id="contact-error-title">Periksa kembali isian berikut:</h3>
             <ul class="form-error-list" id="contact-error-list"></ul>
           </div>
 
@@ -651,11 +805,11 @@ window.PBS = window.PBS || {};
                 name="name"
                 class="input-control"
                 autocomplete="name"
-                placeholder="Contoh: Andi Pratama"
+                placeholder="Nama lengkap atau instansi Anda"
                 aria-describedby="contact-name-help contact-name-error"
                 required
               >
-              <span class="field-helper" id="contact-name-help">Isi nama Anda atau instansi/komunitas.</span>
+              <span class="field-helper" id="contact-name-help">Isi nama Anda atau nama instansi/komunitas.</span>
               <span class="field-error" id="contact-name-error" hidden></span>
             </div>
 
@@ -671,7 +825,7 @@ window.PBS = window.PBS || {};
                 aria-describedby="contact-email-help contact-email-error"
                 required
               >
-              <span class="field-helper" id="contact-email-help">Alamat email ini dicantumkan sebagai pengirim saat membuka email Anda.</span>
+              <span class="field-helper" id="contact-email-help">Alamat email ini digunakan tim kami untuk membalas pesan Anda.</span>
               <span class="field-error" id="contact-email-error" hidden></span>
             </div>
 
@@ -707,12 +861,12 @@ window.PBS = window.PBS || {};
             </div>
 
             <div class="form-actions-row">
-              <button type="submit" class="btn btn-primary" id="contact-submit-btn">Siapkan Pesan Email</button>
+              <button type="submit" class="btn btn-primary" id="contact-submit-btn">Kirim Pesan</button>
               <button type="reset" class="btn btn-secondary" id="contact-reset-btn">Kosongkan Formulir</button>
             </div>
           </form>
 
-          <div class="contact-result-card" id="contact-result-mount" hidden role="status" aria-live="polite"></div>
+          <div class="contact-result-card" id="contact-result-mount" tabindex="-1" hidden role="status" aria-live="polite"></div>
         </div>
       </div>
     `;
@@ -724,19 +878,23 @@ window.PBS = window.PBS || {};
 
     if (copyEmailBtn && copyEmailStatus) {
       copyEmailBtn.addEventListener("click", () => {
-        copyToClipboard(CONTACT_INFO.email, copyEmailStatus, "Email tersalin.");
+        copyToClipboard(contact.email, copyEmailStatus, "Email tersalin.");
       });
     }
     if (copyPhoneBtn && copyPhoneStatus) {
       copyPhoneBtn.addEventListener("click", () => {
-        copyToClipboard(CONTACT_INFO.phoneDisplay, copyPhoneStatus, "Nomor telepon tersalin.");
+        copyToClipboard(contact.phoneDisplay, copyPhoneStatus, "Nomor telepon tersalin.");
       });
     }
 
     const form = document.getElementById("contact-form");
     const errorSummary = document.getElementById("contact-error-summary");
+    const errorTitle = document.getElementById("contact-error-title");
     const errorList = document.getElementById("contact-error-list");
     const resultMount = document.getElementById("contact-result-mount");
+    const submitBtn = document.getElementById("contact-submit-btn");
+    const resetBtn = document.getElementById("contact-reset-btn");
+    let isSubmitting = false;
 
     const fields = {
       name: {
@@ -791,14 +949,17 @@ window.PBS = window.PBS || {};
 
     form.addEventListener("reset", () => {
       Object.keys(fields).forEach((key) => setFieldError(key, ""));
+      if (errorTitle) errorTitle.textContent = "Periksa kembali isian berikut:";
       errorSummary.hidden = true;
       errorList.innerHTML = "";
       resultMount.hidden = true;
       resultMount.innerHTML = "";
     });
 
-    form.addEventListener("submit", (ev) => {
+    form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      if (isSubmitting) return;
+
       const errors = [];
       Object.keys(fields).forEach((key) => {
         const msg = fields[key].validate(fields[key].input.value);
@@ -809,10 +970,11 @@ window.PBS = window.PBS || {};
       });
 
       if (errors.length) {
+        if (errorTitle) errorTitle.textContent = "Periksa kembali isian berikut:";
         errorList.innerHTML = errors.map((e) => `<li><a href="#${escapeHtml(e.id)}">${escapeHtml(e.msg)}</a></li>`).join("");
         errorSummary.hidden = false;
         resultMount.hidden = true;
-        errorSummary.querySelectorAll("a").forEach((a) => {
+        errorSummary.querySelectorAll('a[href^="#"]').forEach((a) => {
           a.addEventListener("click", (linkEv) => {
             linkEv.preventDefault();
             const target = document.getElementById(a.getAttribute("href").slice(1));
@@ -824,6 +986,9 @@ window.PBS = window.PBS || {};
       }
 
       errorSummary.hidden = true;
+      errorList.innerHTML = "";
+      resultMount.hidden = true;
+
       const nameVal = fields.name.input.value.trim();
       const emailVal = fields.email.input.value.trim();
       const topicVal = fields.topic.input.value.trim();
@@ -831,39 +996,87 @@ window.PBS = window.PBS || {};
 
       const subject = `[berasak.ai] ${topicVal} - ${nameVal}`;
       const bodyText = `Nama: ${nameVal}\nEmail Pengirim: ${emailVal}\nTopik: ${topicVal}\n\nPesan:\n${msgVal}`;
-      const mailtoHref = `mailto:${CONTACT_INFO.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+      const mailtoHref = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
 
-      form.hidden = true;
-      resultMount.hidden = false;
-      resultMount.innerHTML = `
-        <h3 class="card-title">Draf Pesan Siap Dikirim</h3>
-        <p class="card-desc">
-          Portal web ini tidak mengirim email otomatis langsung dari server. Klik tombol di bawah untuk membuka aplikasi email Anda dengan tujuan
-          <strong class="font-mono">${CONTACT_INFO.email}</strong>, atau salin teks pesan untuk dikirim secara manual.
-        </p>
-        <div class="contact-channel-actions">
-          <a class="btn btn-primary" href="${mailtoHref}">Buka di Aplikasi Email</a>
-          <button type="button" class="btn btn-secondary" id="copy-draft-btn">Salin Isi Pesan</button>
-          <button type="button" class="btn btn-ghost" id="new-draft-btn">Tulis Pesan Baru</button>
-        </div>
-        <span class="copy-feedback" id="copy-draft-status" aria-live="polite"></span>
-      `;
-
-      const copyDraftBtn = document.getElementById("copy-draft-btn");
-      const copyDraftStatus = document.getElementById("copy-draft-status");
-      const newDraftBtn = document.getElementById("new-draft-btn");
-
-      if (copyDraftBtn && copyDraftStatus) {
-        copyDraftBtn.addEventListener("click", () => {
-          copyToClipboard(`Kepada: ${CONTACT_INFO.email}\nSubjek: ${subject}\n\n${bodyText}`, copyDraftStatus, "Draf pesan tersalin.");
-        });
+      isSubmitting = true;
+      const defaultSubmitText = submitBtn ? submitBtn.textContent : "Kirim Pesan";
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute("aria-busy", "true");
+        submitBtn.textContent = "Mengirim Pesan...";
       }
-      if (newDraftBtn) {
-        newDraftBtn.addEventListener("click", () => {
-          form.hidden = false;
-          form.reset();
-          fields.name.input.focus();
+      if (resetBtn) resetBtn.disabled = true;
+
+      try {
+        const resData = await postContactPayload({
+          name: nameVal,
+          email: emailVal,
+          topic: topicVal,
+          message: msgVal,
         });
+
+        const refId = resData && resData.reference_id ? String(resData.reference_id) : "BRS-TERCATAT";
+        const submittedText = resData && resData.submitted_at ? formatSubmittedTimeId(resData.submitted_at) : "";
+        const copyText = `Nomor Tiket: ${refId}\nKepada: ${contact.email}\nSubjek: ${subject}\n\n${bodyText}`;
+
+        errorSummary.hidden = true;
+        errorList.innerHTML = "";
+        form.hidden = true;
+        resultMount.hidden = false;
+        resultMount.innerHTML = `
+          <div class="contact-result-header">
+            <span class="badge badge-neutral font-mono" id="contact-ticket-badge">Nomor Tiket: ${escapeHtml(refId)}</span>
+          </div>
+          <h3 class="card-title">Pesan Berhasil Diterima</h3>
+          <p class="card-desc">
+            Terima kasih, <strong>${escapeHtml(nameVal)}</strong>. Pesan Anda dengan topik <strong>${escapeHtml(topicVal)}</strong> telah tercatat oleh server berasak.ai${submittedText ? ` (${escapeHtml(submittedText)})` : ""}.
+            Simpan nomor tiket <strong class="font-mono">${escapeHtml(refId)}</strong> sebagai rujukan tindak lanjut melalui <strong class="font-mono">${escapeHtml(contact.email)}</strong>.
+          </p>
+          <div class="contact-channel-actions">
+            <button type="button" class="btn btn-primary" id="copy-draft-btn">Salin Isi Pesan</button>
+            <a class="btn btn-secondary" href="${escapeHtml(mailtoHref)}">Buka di Aplikasi Email</a>
+            <button type="button" class="btn btn-ghost" id="new-draft-btn">Kirim Pesan Baru</button>
+          </div>
+          <span class="copy-feedback" id="copy-draft-status" aria-live="polite"></span>
+        `;
+
+        const copyDraftBtn = document.getElementById("copy-draft-btn");
+        const copyDraftStatus = document.getElementById("copy-draft-status");
+        const newDraftBtn = document.getElementById("new-draft-btn");
+
+        if (copyDraftBtn && copyDraftStatus) {
+          copyDraftBtn.addEventListener("click", () => {
+            copyToClipboard(copyText, copyDraftStatus, "Salinan pesan dan nomor tiket tersalin.");
+          });
+        }
+        if (newDraftBtn) {
+          newDraftBtn.addEventListener("click", () => {
+            form.hidden = false;
+            form.reset();
+            fields.name.input.focus();
+          });
+        }
+        resultMount.focus();
+      } catch (err) {
+        const errMessage = err && err.message
+          ? err.message
+          : "Pesan gagal dikirim ke server. Silakan coba lagi atau kirim melalui aplikasi email.";
+        if (errorTitle) errorTitle.textContent = "Pesan belum dapat dikirim ke server:";
+        errorList.innerHTML = `
+          <li>${escapeHtml(errMessage)}</li>
+          <li>Alternatif langsung: <a href="${escapeHtml(mailtoHref)}">Buka draf pesan di aplikasi email perangkat Anda</a>.</li>
+        `;
+        errorSummary.hidden = false;
+        resultMount.hidden = true;
+        errorSummary.focus();
+      } finally {
+        isSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute("aria-busy");
+          submitBtn.textContent = defaultSubmitText;
+        }
+        if (resetBtn) resetBtn.disabled = false;
       }
     });
   }
