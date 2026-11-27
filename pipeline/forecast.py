@@ -1,107 +1,42 @@
-"""Time-series forecasting engine and verified Figma snapshot generator."""
+"""JSB MLP time-series forecasting pipeline and verified snapshot generator."""
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import json
 import math
-import sqlite3
-import statistics
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import sqlite3
+import sys
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from pipeline.jsb_model import (  # noqa: E402
+    ARTIFACTS_PATH,
+    HOLDOUT_START,
+    MODEL_LABEL,
+    MODEL_NAME,
+    JsbInferenceEngine,
+    aggregate_weekly,
+    train_and_save_jsb,
+)
+
 DB_PATH = ROOT_DIR / "data" / "pantau_beras.db"
 SNAPSHOT_PATH = ROOT_DIR / "data" / "verified_figma_snapshot.json"
 
-HOLDOUT_START = "2025-01-01"
 HORIZONS = (4, 8)
-MODELS = ("moving_average_4w", "seasonal_naive", "arima_110")
-
-
-def aggregate_weekly(rows: list[tuple[str, int]]) -> list[tuple[str, float]]:
-    """Aggregate daily (price_date, price_idr) into Monday-anchored weekly averages."""
-    buckets: dict[str, list[int]] = {}
-    for d_str, price in rows:
-        dt = datetime.strptime(d_str, "%Y-%m-%d")
-        monday = (dt - timedelta(days=dt.weekday())).strftime("%Y-%m-%d")
-        buckets.setdefault(monday, []).append(price)
-    ordered = sorted(buckets.items(), key=lambda kv: kv[0])
-    return [(w, sum(vals) / len(vals)) for w, vals in ordered]
-
-
-def forecast_moving_average_4w(history: list[float], horizon: int) -> list[float]:
-    """Flat baseline: mean of last 4 weekly observations."""
-    window = history[-4:] if len(history) >= 4 else history
-    level = sum(window) / len(window)
-    return [level for _ in range(horizon)]
-
-
-def forecast_seasonal_naive(history: list[float], horizon: int) -> list[float]:
-    """Seasonal naive: observation 52 weeks earlier, falling back to latest value."""
-    preds: list[float] = []
-    n = len(history)
-    for step in range(1, horizon + 1):
-        idx = n - 52 + (step - 1)
-        if 0 <= idx < n:
-            preds.append(history[idx])
-        else:
-            preds.append(history[-1])
-    return preds
-
-
-def forecast_arima_110(history: list[float], horizon: int) -> list[float]:
-    """Fit ARIMA(1,1,0) via OLS on first differences with mild drift damping."""
-    if len(history) < 8:
-        return [history[-1] for _ in range(horizon)]
-
-    diffs = [history[i] - history[i - 1] for i in range(1, len(history))]
-    # Winsorize extreme >25% single-week step jumps only during parameter estimation
-    # so data spikes (e.g. 2022 producer outlier) do not explode AR(1) slope.
-    clean_diffs: list[float] = []
-    for i, d in enumerate(diffs):
-        base = max(history[i], 1.0)
-        cap = 0.25 * base
-        clean_diffs.append(max(-cap, min(cap, d)))
-
-    x = clean_diffs[:-1]
-    y = clean_diffs[1:]
-    mx = sum(x) / len(x)
-    my = sum(y) / len(y)
-    denom = sum((xi - mx) ** 2 for xi in x)
-    if denom > 1e-9:
-        phi = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y)) / denom
-    else:
-        phi = 0.0
-    phi = max(-0.85, min(0.85, phi))
-
-    # Zero-mean difference assumption keeps multi-step drift bounded on step series
-    last_diff = clean_diffs[-1]
-    level = history[-1]
-    preds: list[float] = []
-    cur_diff = last_diff
-    for _ in range(horizon):
-        next_diff = phi * cur_diff
-        level = max(1000.0, level + next_diff)
-        preds.append(level)
-        cur_diff = next_diff
-    return preds
-
-
-def run_model(model_name: str, history: list[float], horizon: int) -> list[float]:
-    if model_name == "moving_average_4w":
-        return forecast_moving_average_4w(history, horizon)
-    if model_name == "seasonal_naive":
-        return forecast_seasonal_naive(history, horizon)
-    if model_name == "arima_110":
-        return forecast_arima_110(history, horizon)
-    raise ValueError(f"Unknown model {model_name}")
+MODELS = (MODEL_NAME,)
 
 
 def evaluate_holdout(
     weekly: list[tuple[str, float]],
-    model_name: str,
+    segment_slug: str,
+    province_name: str,
+    engine: JsbInferenceEngine,
     horizon: int,
-) -> tuple[float, float, list[float]]:
+) -> dict:
     """Chronological walk-forward evaluation for origins in HOLDOUT_START..end."""
     dates = [w for w, _ in weekly]
     vals = [v for _, v in weekly]
@@ -110,47 +45,83 @@ def evaluate_holdout(
 
     abs_errors: list[float] = []
     pct_errors: list[float] = []
+    sq_errors: list[float] = []
     step_residuals: list[list[float]] = [[] for _ in range(horizon)]
+    step1_points: list[dict] = []
 
     for origin in range(start_idx, len(vals) - horizon + 1):
         hist = vals[:origin]
-        preds = run_model(model_name, hist, horizon)
+        origin_last_dt = datetime.strptime(dates[origin - 1], "%Y-%m-%d")
+        preds, _ = engine.forecast_recursive(
+            hist,
+            origin_last_dt,
+            segment_slug=segment_slug,
+            province_name=province_name,
+            horizon_weeks=horizon,
+        )
         for s in range(horizon):
             actual = vals[origin + s]
             err = actual - preds[s]
             abs_errors.append(abs(err))
             pct_errors.append(abs(err) / actual * 100.0)
+            sq_errors.append(err * err)
             step_residuals[s].append(err)
+
+        target_week = dates[origin]
+        actual_1 = round(vals[origin])
+        pred_1 = max(1000, round(preds[0]))
+        diff_1 = pred_1 - actual_1
+        step1_points.append(
+            {
+                "week_date": target_week,
+                "actual_idr": actual_1,
+                "predicted_idr": pred_1,
+                "error_idr": diff_1,
+                "error_pct": round(abs(diff_1) / max(1, actual_1) * 100.0, 2),
+            }
+        )
 
     mae = sum(abs_errors) / len(abs_errors)
     mape = sum(pct_errors) / len(pct_errors)
+    rmse = math.sqrt(sum(sq_errors) / len(sq_errors))
+
     step_stds: list[float] = []
     for res in step_residuals:
         if len(res) >= 2:
             rms = math.sqrt(sum(e * e for e in res) / len(res))
-            step_stds.append(max(rms, 100.0))
+            step_stds.append(max(rms, 85.0))
         else:
-            step_stds.append(max(mae * 1.25, 100.0))
-    return round(mae, 2), round(mape, 2), step_stds
+            step_stds.append(max(mae * 1.25, 85.0))
+
+    # Pick up to 8 evenly spaced test samples covering start through end of holdout
+    if len(step1_points) > 8:
+        indices = sorted({round(i * (len(step1_points) - 1) / 7) for i in range(8)})
+        samples = [step1_points[i] for i in indices]
+    else:
+        samples = step1_points
+
+    return {
+        "mae": round(mae, 2),
+        "mape": round(mape, 2),
+        "rmse": round(rmse, 2),
+        "step_stds": step_stds,
+        "residual_std": round(step_stds[0], 2),
+        "test_samples": samples,
+    }
 
 
 def run_forecasts() -> dict[str, list[dict]]:
-    """Evaluate all models and store 4w/8w projections in price_forecasts."""
+    """Train TF/Keras JSB MLP, evaluate on holdout, and store 4w/8w forecasts."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
-        conn.execute("DELETE FROM price_forecasts")
-        trained_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
         commodity_id = conn.execute("SELECT id FROM commodities WHERE slug = 'beras'").fetchone()["id"]
         segments = conn.execute("SELECT id, slug, label FROM market_segments ORDER BY id").fetchall()
         provinces = conn.execute("SELECT id, name FROM provinces ORDER BY name").fetchall()
 
-        summary_by_seg: dict[str, list[dict]] = {}
-        insert_rows: list[tuple] = []
-
+        weekly_by_series: dict[tuple[str, str], list[tuple[str, float]]] = {}
+        daily_by_series: dict[tuple[str, str], list[sqlite3.Row]] = {}
         for seg in segments:
-            seg_list: list[dict] = []
             for prov in provinces:
                 daily = conn.execute(
                     """
@@ -161,51 +132,106 @@ def run_forecasts() -> dict[str, list[dict]]:
                     """,
                     (seg["id"], prov["id"]),
                 ).fetchall()
-                weekly = aggregate_weekly([(r["price_date"], r["price_idr"]) for r in daily])
+                key = (seg["slug"], prov["name"])
+                daily_by_series[key] = daily
+                weekly_by_series[key] = aggregate_weekly([(r["price_date"], r["price_idr"]) for r in daily])
+
+        artifacts = train_and_save_jsb(weekly_by_series)
+        engine = JsbInferenceEngine(artifacts)
+        trained_at = artifacts["trained_at"]
+
+        summary_by_seg: dict[str, list[dict]] = {}
+        series_eval: dict[str, dict] = {}
+        insert_rows: list[tuple] = []
+
+        for seg in segments:
+            seg_list: list[dict] = []
+            for prov in provinces:
+                key = (seg["slug"], prov["name"])
+                daily = daily_by_series[key]
+                weekly = weekly_by_series[key]
                 last_date = datetime.strptime(daily[-1]["price_date"], "%Y-%m-%d")
+                last_weekly_dt = datetime.strptime(weekly[-1][0], "%Y-%m-%d")
                 vals = [v for _, v in weekly]
 
+                eval_by_horizon: dict[int, dict] = {}
                 for horizon in HORIZONS:
-                    for model_name in MODELS:
-                        mae, mape, step_stds = evaluate_holdout(weekly, model_name, horizon)
-                        preds = run_model(model_name, vals, horizon)
-                        for s_idx, pred in enumerate(preds):
-                            step_week = s_idx + 1
-                            target_dt = last_date + timedelta(days=7 * step_week)
-                            margin = 1.645 * step_stds[s_idx]
-                            pred_int = max(1000, round(pred))
-                            lower_int = max(1000, round(pred - margin))
-                            upper_int = max(pred_int, round(pred + margin))
-                            insert_rows.append(
-                                (
-                                    commodity_id,
-                                    seg["id"],
-                                    prov["id"],
-                                    model_name,
-                                    horizon,
-                                    step_week,
-                                    target_dt.strftime("%Y-%m-%d"),
-                                    pred_int,
-                                    lower_int,
-                                    upper_int,
-                                    mae,
-                                    mape,
-                                    "2025-01-01..2026-02-12",
-                                    trained_at,
-                                )
+                    ev = evaluate_holdout(weekly, seg["slug"], prov["name"], engine, horizon)
+                    eval_by_horizon[horizon] = ev
+                    preds, _ = engine.forecast_recursive(
+                        vals,
+                        last_weekly_dt,
+                        segment_slug=seg["slug"],
+                        province_name=prov["name"],
+                        horizon_weeks=horizon,
+                    )
+                    for s_idx, pred in enumerate(preds):
+                        step_week = s_idx + 1
+                        target_dt = last_date + timedelta(days=7 * step_week)
+                        margin = 1.645 * ev["step_stds"][s_idx]
+                        pred_int = max(1000, round(pred))
+                        lower_int = max(1000, round(pred - margin))
+                        upper_int = max(pred_int, round(pred + margin))
+                        insert_rows.append(
+                            (
+                                commodity_id,
+                                seg["id"],
+                                prov["id"],
+                                MODEL_NAME,
+                                horizon,
+                                step_week,
+                                target_dt.strftime("%Y-%m-%d"),
+                                pred_int,
+                                lower_int,
+                                upper_int,
+                                ev["mae"],
+                                ev["mape"],
+                                artifacts["eval_period"],
+                                trained_at,
                             )
-                        if horizon == 4:
-                            seg_list.append(
-                                {
-                                    "province": prov["name"],
-                                    "model": model_name,
-                                    "mae": mae,
-                                    "mape": mape,
-                                    "week4_pred": round(preds[-1]),
-                                }
-                            )
+                        )
+                    if horizon == 4:
+                        seg_list.append(
+                            {
+                                "province": prov["name"],
+                                "model": MODEL_NAME,
+                                "mae": ev["mae"],
+                                "mape": ev["mape"],
+                                "rmse": ev["rmse"],
+                                "week4_pred": round(preds[-1]),
+                            }
+                        )
+
+                ev4 = eval_by_horizon[4]
+                ev8 = eval_by_horizon[8]
+                series_eval[f"{seg['slug']}::{prov['name']}"] = {
+                    "segment": seg["slug"],
+                    "province": prov["name"],
+                    "mae_4w": ev4["mae"],
+                    "mape_4w": ev4["mape"],
+                    "rmse_4w": ev4["rmse"],
+                    "mae_8w": ev8["mae"],
+                    "mape_8w": ev8["mape"],
+                    "rmse_8w": ev8["rmse"],
+                    "residual_std": round(max(ev4["residual_std"], ev8["residual_std"] * 0.85), 2),
+                    "test_samples": ev4["test_samples"],
+                }
             summary_by_seg[seg["slug"]] = seg_list
 
+        eval_items = list(series_eval.values())
+        artifacts["series_eval"] = series_eval
+        artifacts["aggregate_metrics"] = {
+            "series_count": len(eval_items),
+            "avg_mae_4w": round(sum(x["mae_4w"] for x in eval_items) / len(eval_items), 2),
+            "avg_mape_4w": round(sum(x["mape_4w"] for x in eval_items) / len(eval_items), 2),
+            "avg_rmse_4w": round(sum(x["rmse_4w"] for x in eval_items) / len(eval_items), 2),
+            "avg_mae_8w": round(sum(x["mae_8w"] for x in eval_items) / len(eval_items), 2),
+            "avg_mape_8w": round(sum(x["mape_8w"] for x in eval_items) / len(eval_items), 2),
+            "avg_rmse_8w": round(sum(x["rmse_8w"] for x in eval_items) / len(eval_items), 2),
+        }
+        ARTIFACTS_PATH.write_text(json.dumps(artifacts, indent=2), encoding="utf-8")
+
+        conn.execute("DELETE FROM price_forecasts")
         conn.executemany(
             """
             INSERT INTO price_forecasts (
@@ -217,14 +243,14 @@ def run_forecasts() -> dict[str, list[dict]]:
             insert_rows,
         )
         conn.commit()
-        build_verified_snapshot(conn)
+        build_verified_snapshot(conn, artifacts)
         return summary_by_seg
     finally:
         conn.close()
 
 
-def build_verified_snapshot(conn: sqlite3.Connection) -> None:
-    """Write a complete verified JSON snapshot for Figma design authoring."""
+def build_verified_snapshot(conn: sqlite3.Connection, artifacts: dict | None = None) -> None:
+    """Write a complete verified JSON snapshot including JSB evaluation summary."""
     etl_rows = [
         dict(r)
         for r in conn.execute(
@@ -354,6 +380,7 @@ def build_verified_snapshot(conn: sqlite3.Connection) -> None:
             (model_name,),
         ).fetchall()
         sulsel_forecasts[model_name] = {
+            "model_label": MODEL_LABEL,
             "eval_mae": fc_rows[0]["eval_mae"],
             "eval_mape": fc_rows[0]["eval_mape"],
             "points": [dict(r) for r in fc_rows],
@@ -390,6 +417,22 @@ def build_verified_snapshot(conn: sqlite3.Connection) -> None:
         ).fetchall()
     ]
 
+    if artifacts is None and ARTIFACTS_PATH.exists():
+        artifacts = json.loads(ARTIFACTS_PATH.read_text(encoding="utf-8"))
+
+    jsb_summary = {}
+    if artifacts:
+        jsb_summary = {
+            "model_name": artifacts.get("model_name"),
+            "model_label": artifacts.get("model_label"),
+            "framework": artifacts.get("framework"),
+            "tensorflow_version": artifacts.get("tensorflow_version"),
+            "architecture": artifacts.get("architecture"),
+            "split": artifacts.get("split"),
+            "training": artifacts.get("training"),
+            "aggregate_metrics": artifacts.get("aggregate_metrics"),
+        }
+
     snapshot = {
         "latest_date": latest_date,
         "etl_runs": etl_rows,
@@ -400,6 +443,7 @@ def build_verified_snapshot(conn: sqlite3.Connection) -> None:
             {"week": w, "price": round(v)} for w, v in sulsel_weekly
         ],
         "sulsel_modern_forecasts_4w": sulsel_forecasts,
+        "jsb_summary": jsb_summary,
         "modern_imputed_dates_r3": imputed_dates_modern,
         "modern_anomalies_r5": anomalies_modern,
     }
@@ -412,6 +456,6 @@ if __name__ == "__main__":
         print(f"=== Forecast Eval (4w) [{slug}] ===")
         for row in rows:
             print(
-                f"  {row['province']:20s} | {row['model']:18s} | "
-                f"MAE=Rp{row['mae']:.1f} | MAPE={row['mape']:.2f}% | W4=Rp{row['week4_pred']}"
+                f"  {row['province']:20s} | {row['model']:10s} | "
+                f"MAE=Rp{row['mae']:.1f} | MAPE={row['mape']:.2f}% | RMSE=Rp{row['rmse']:.1f} | W4=Rp{row['week4_pred']}"
             )

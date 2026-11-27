@@ -1065,131 +1065,132 @@
     }
   ],
   "sulsel_modern_forecasts_4w": {
-    "moving_average_4w": {
-      "eval_mae": 3.65,
-      "eval_mape": 0.02,
+    "jsb_mlp": {
+      "model_label": "JSB MLP (Jaringan Syaraf Buatan)",
+      "eval_mae": 60.76,
+      "eval_mape": 0.41,
       "points": [
         {
           "step_week": 1,
           "target_date": "2026-02-19",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 3.65,
-          "eval_mape": 0.02
+          "predicted_idr": 14994,
+          "lower_idr": 14855,
+          "upper_idr": 15134,
+          "eval_mae": 60.76,
+          "eval_mape": 0.41
         },
         {
           "step_week": 2,
           "target_date": "2026-02-26",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 3.65,
-          "eval_mape": 0.02
+          "predicted_idr": 15040,
+          "lower_idr": 14900,
+          "upper_idr": 15180,
+          "eval_mae": 60.76,
+          "eval_mape": 0.41
         },
         {
           "step_week": 3,
           "target_date": "2026-03-05",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 3.65,
-          "eval_mape": 0.02
+          "predicted_idr": 15075,
+          "lower_idr": 14926,
+          "upper_idr": 15223,
+          "eval_mae": 60.76,
+          "eval_mape": 0.41
         },
         {
           "step_week": 4,
           "target_date": "2026-03-12",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 3.65,
-          "eval_mape": 0.02
+          "predicted_idr": 15109,
+          "lower_idr": 14912,
+          "upper_idr": 15307,
+          "eval_mae": 60.76,
+          "eval_mape": 0.41
+        }
+      ]
+    }
+  },
+  "jsb_summary": {
+    "model_name": "jsb_mlp",
+    "model_label": "JSB MLP (Jaringan Syaraf Buatan)",
+    "framework": "TensorFlow / Keras (Sequential MLP)",
+    "tensorflow_version": "2.21.0",
+    "architecture": {
+      "name": "berasak_jsb_mlp",
+      "input_dim": 17,
+      "hidden_layers": 2,
+      "total_params": 1121,
+      "optimizer": "Adam (learning_rate=0.003)",
+      "loss": "Mean Squared Error (MSE)",
+      "metrics": [
+        "MAE"
+      ],
+      "layers": [
+        {
+          "name": "input_fitur_beras",
+          "type": "Input",
+          "units": 17,
+          "activation": null,
+          "params": 0,
+          "role": "Masukan 17 fitur terstandarisasi"
+        },
+        {
+          "name": "hidden_layer_1",
+          "type": "Dense",
+          "units": 32,
+          "activation": "relu",
+          "params": 576,
+          "role": "Hidden Layer 1 (ekstraksi pola harga non-linear)"
+        },
+        {
+          "name": "hidden_layer_2",
+          "type": "Dense",
+          "units": 16,
+          "activation": "relu",
+          "params": 528,
+          "role": "Hidden Layer 2 (kombinasi tren & musiman)"
+        },
+        {
+          "name": "output_delta_harga",
+          "type": "Dense",
+          "units": 1,
+          "activation": "linear",
+          "params": 17,
+          "role": "Lapisan Keluaran (prediksi perubahan mingguan)"
         }
       ]
     },
-    "seasonal_naive": {
-      "eval_mae": 220.13,
-      "eval_mape": 1.47,
-      "points": [
-        {
-          "step_week": 1,
-          "target_date": "2026-02-19",
-          "predicted_idr": 14950,
-          "lower_idr": 14281,
-          "upper_idr": 15619,
-          "eval_mae": 220.13,
-          "eval_mape": 1.47
-        },
-        {
-          "step_week": 2,
-          "target_date": "2026-02-26",
-          "predicted_idr": 14950,
-          "lower_idr": 14319,
-          "upper_idr": 15581,
-          "eval_mae": 220.13,
-          "eval_mape": 1.47
-        },
-        {
-          "step_week": 3,
-          "target_date": "2026-03-05",
-          "predicted_idr": 14950,
-          "lower_idr": 14359,
-          "upper_idr": 15541,
-          "eval_mae": 220.13,
-          "eval_mape": 1.47
-        },
-        {
-          "step_week": 4,
-          "target_date": "2026-03-12",
-          "predicted_idr": 14950,
-          "lower_idr": 14403,
-          "upper_idr": 15497,
-          "eval_mae": 220.13,
-          "eval_mape": 1.47
-        }
-      ]
+    "split": {
+      "method": "Chronological Walk-Forward Holdout",
+      "cutoff_date": "2025-01-01",
+      "train_period": "2022-01-24..2024-12-30",
+      "test_period": "2025-01-06..2026-02-09",
+      "train_samples": 2772,
+      "test_samples": 1044,
+      "total_samples": 3816,
+      "train_ratio_pct": 72.6,
+      "test_ratio_pct": 27.4
     },
-    "arima_110": {
-      "eval_mae": 2.23,
-      "eval_mape": 0.01,
-      "points": [
-        {
-          "step_week": 1,
-          "target_date": "2026-02-19",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 2.23,
-          "eval_mape": 0.01
-        },
-        {
-          "step_week": 2,
-          "target_date": "2026-02-26",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 2.23,
-          "eval_mape": 0.01
-        },
-        {
-          "step_week": 3,
-          "target_date": "2026-03-05",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 2.23,
-          "eval_mape": 0.01
-        },
-        {
-          "step_week": 4,
-          "target_date": "2026-03-12",
-          "predicted_idr": 14950,
-          "lower_idr": 14786,
-          "upper_idr": 15114,
-          "eval_mae": 2.23,
-          "eval_mape": 0.01
-        }
-      ]
+    "training": {
+      "epochs_configured": 80,
+      "epochs_run": 75,
+      "batch_size": 32,
+      "early_stopping_patience": 12,
+      "best_epoch": 63,
+      "initial_train_loss": 0.00822445,
+      "final_train_loss": 0.00020655,
+      "initial_val_loss": 0.00352653,
+      "final_val_loss": 0.00013076,
+      "eval_test_mse": 0.00013076,
+      "eval_test_delta_mae": 0.006212
+    },
+    "aggregate_metrics": {
+      "series_count": 18,
+      "avg_mae_4w": 207.93,
+      "avg_mape_4w": 1.42,
+      "avg_rmse_4w": 307.06,
+      "avg_mae_8w": 353.82,
+      "avg_mape_8w": 2.41,
+      "avg_rmse_8w": 490.36
     }
   },
   "modern_imputed_dates_r3": [
